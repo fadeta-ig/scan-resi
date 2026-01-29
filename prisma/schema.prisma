@@ -1,0 +1,32 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model ScanningSession {
+  id          String        @id @default(cuid())
+  name        String
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  items       SessionItem[]
+}
+
+model SessionItem {
+  id           String          @id @default(cuid())
+  sessionId    String
+  session      ScanningSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  trackingId   String
+  recipient    String?
+  productName  String?
+  status       String          @default("UNSCANNED") // "UNSCANNED" or "SCANNED"
+  scannedAt    DateTime?
+  createdAt    DateTime        @default(now())
+
+  @@unique([sessionId, trackingId])
+}
