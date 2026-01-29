@@ -9,11 +9,62 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ============================================
+// RBAC - User Management
+// ============================================
+
+enum Role {
+  ADMIN       // Marketplace Admin - Back Office
+  WAREHOUSE   // Warehouse Staff - Field Operator
+  SUPER_ADMIN // IT / Super Admin - Full Access
+}
+
+model User {
+  id           String            @id @default(cuid())
+  username     String            @unique
+  password     String            // bcrypt hashed
+  name         String
+  role         Role
+  isActive     Boolean           @default(true)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  
+  // Relations
+  createdSessions ScanningSession[] @relation("SessionCreator")
+  scannedItems    SessionItem[]     @relation("ItemScanner")
+  logs            ActivityLog[]
+}
+
+model ActivityLog {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  action      String   // CREATE_SESSION, UPLOAD_EXCEL, SCAN_ITEM, LOGIN, LOGOUT, etc.
+  details     String?  // JSON string with additional context
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+// ============================================
+// Session & Scanning
+// ============================================
+
 model ScanningSession {
   id          String        @id @default(cuid())
   name        String
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
+  isActive    Boolean       @default(true)
+  
+  // Creator relation
+  createdById String?
+  createdBy   User?         @relation("SessionCreator", fields: [createdById], references: [id])
+  
   items       SessionItem[]
 }
 
@@ -26,7 +77,14 @@ model SessionItem {
   productName  String?
   status       String          @default("UNSCANNED") // "UNSCANNED" or "SCANNED"
   scannedAt    DateTime?
+  
+  // Scanner relation
+  scannedById  String?
+  scannedBy    User?           @relation("ItemScanner", fields: [scannedById], references: [id])
+  
   createdAt    DateTime        @default(now())
 
   @@unique([sessionId, trackingId])
+  @@index([sessionId])
+  @@index([status])
 }
