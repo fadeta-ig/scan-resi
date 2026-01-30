@@ -5,7 +5,8 @@ import { prisma } from './prisma';
 
 const SALT_ROUNDS = 10;
 const SESSION_COOKIE_NAME = 'scan_resi_session';
-const SESSION_DURATION = 7 * 24 * 60 * 60 * 1000; // 7 days
+const SHORT_SESSION_DURATION = 24 * 60 * 60 * 1000; // 1 day
+const LONG_SESSION_DURATION = 30 * 24 * 60 * 60 * 1000; // 30 days
 
 // ============================================
 // Password Utilities
@@ -31,7 +32,7 @@ interface SessionData {
     expiresAt: number;
 }
 
-export async function createSession(userId: string): Promise<string> {
+export async function createSession(userId: string, rememberMe: boolean = false): Promise<string> {
     const user = await prisma.user.findUnique({
         where: { id: userId },
         select: { id: true, username: true, name: true, role: true }
@@ -39,12 +40,14 @@ export async function createSession(userId: string): Promise<string> {
 
     if (!user) throw new Error('User not found');
 
+    const duration = rememberMe ? LONG_SESSION_DURATION : SHORT_SESSION_DURATION;
+
     const sessionData: SessionData = {
         userId: user.id,
         username: user.username,
         name: user.name,
         role: user.role,
-        expiresAt: Date.now() + SESSION_DURATION
+        expiresAt: Date.now() + duration
     };
 
     // Encode session data as base64
@@ -53,13 +56,15 @@ export async function createSession(userId: string): Promise<string> {
     return sessionToken;
 }
 
-export async function setSessionCookie(sessionToken: string): Promise<void> {
+export async function setSessionCookie(sessionToken: string, rememberMe: boolean = false): Promise<void> {
     const cookieStore = await cookies();
+    const duration = rememberMe ? LONG_SESSION_DURATION : SHORT_SESSION_DURATION;
+
     cookieStore.set(SESSION_COOKIE_NAME, sessionToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
-        maxAge: SESSION_DURATION / 1000, // Convert to seconds
+        maxAge: duration / 1000, // Convert to seconds
         path: '/'
     });
 }

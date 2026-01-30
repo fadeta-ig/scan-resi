@@ -7,6 +7,13 @@ import { ToastProvider } from "@/contexts/ToastContext";
 export const metadata: Metadata = {
   title: "Sistem Pelacakan Paket E-Commerce | PT Wijaya Inovasi Gemilang",
   description: "Dashboard Rekonsiliasi Logistik Profesional dengan pemindaian barcode dan kontrol akses multi-peran.",
+  manifest: "/manifest.json",
+  themeColor: "#800000",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Scan Resi",
+  },
 };
 
 export default function RootLayout({

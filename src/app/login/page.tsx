@@ -13,6 +13,7 @@ import { User, Lock, LogIn, Loader2, AlertCircle } from 'lucide-react';
 export default function LoginPage() {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
+    const [rememberMe, setRememberMe] = useState(false);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const { user, loading: authLoading, login } = useAuth();
@@ -35,7 +36,7 @@ export default function LoginPage() {
         setLoading(true);
 
         try {
-            const result = await login(username, password);
+            const result = await login(username, password, rememberMe);
 
             if (!result.success) {
                 const msg = result.error || 'Username atau password salah';
@@ -121,6 +122,18 @@ export default function LoginPage() {
                                 required
                             />
                         </div>
+                    </div>
+
+                    <div className={styles.rememberGroup}>
+                        <label className={styles.checkboxContainer}>
+                            <input
+                                type="checkbox"
+                                checked={rememberMe}
+                                onChange={(e) => setRememberMe(e.target.checked)}
+                            />
+                            <span className={styles.checkmark}></span>
+                            Ingat saya
+                        </label>
                     </div>
 
                     <button

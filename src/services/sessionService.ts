@@ -105,21 +105,36 @@ export class SessionService {
     }
 
     /**
-     * Get session by ID with stats
+     * Get session by ID with stats - Optimized for large datasets
      */
     static async getSession(sessionId: string) {
         const session = await prisma.scanningSession.findUnique({
             where: { id: sessionId },
-            include: {
-                items: { orderBy: { scannedAt: 'desc' } }
-            }
+            select: { id: true, name: true, isActive: true }
         });
 
         if (!session) return null;
 
-        const stats = this.calculateStats(session.items);
+        const statsData = await prisma.sessionItem.aggregate({
+            where: { sessionId },
+            _count: {
+                id: true,
+                status: true
+            }
+        });
 
-        return { ...session, stats };
+        const scannedCount = await prisma.sessionItem.count({
+            where: { sessionId, status: 'SCANNED' }
+        });
+
+        const total = statsData._count.id;
+        const missingCount = total - scannedCount;
+        const progress = total > 0 ? (scannedCount / total) * 100 : 0;
+
+        return {
+            ...session,
+            stats: { total, scannedCount, missingCount, progress }
+        };
     }
 
     /**
@@ -145,6 +160,7 @@ export class SessionService {
 
         return sessions.map(session => ({
             ...session,
+            totalItems: session._count.items,
             scannedCount: countMap.get(session.id) || 0
         }));
     }
@@ -180,39 +196,51 @@ export class SessionService {
     // ========================================
 
     /**
-     * Scan an item in a session
+     * Scan an item in a session - Optimized for high concurrency
      */
     static async scanItem(sessionId: string, trackingId: string, userId?: string): Promise<ScanResult> {
-        const item = await prisma.sessionItem.findUnique({
-            where: { sessionId_trackingId: { sessionId, trackingId } }
-        });
+        try {
+            // Atomic update: only update if currently UNSCANNED
+            const updated = await prisma.sessionItem.update({
+                where: {
+                    sessionId_trackingId: { sessionId, trackingId },
+                    status: 'UNSCANNED'
+                },
+                data: {
+                    status: 'SCANNED',
+                    scannedAt: new Date(),
+                    scannedById: userId || null
+                }
+            });
 
-        if (!item) {
-            return { status: 'INVALID', message: 'Paket Tidak Terdaftar' };
-        }
-
-        if (item.status === 'SCANNED') {
             return {
-                status: 'DUPLICATE',
-                message: 'Paket Sudah Discan',
-                item: item as unknown as SessionItem
+                status: 'SUCCESS',
+                message: 'Berhasil Discan',
+                item: updated as unknown as SessionItem
             };
-        }
+        } catch (error: any) {
+            // Prisma error P2025: Record to update not found
+            // This happens if trackingId is invalid OR status is already SCANNED
+            if (error.code === 'P2025') {
+                const item = await prisma.sessionItem.findUnique({
+                    where: { sessionId_trackingId: { sessionId, trackingId } }
+                });
 
-        const updated = await prisma.sessionItem.update({
-            where: { id: item.id },
-            data: {
-                status: 'SCANNED',
-                scannedAt: new Date(),
-                scannedById: userId || null
+                if (!item) {
+                    return { status: 'INVALID', message: 'Paket Tidak Terdaftar' };
+                }
+
+                if (item.status === 'SCANNED') {
+                    return {
+                        status: 'DUPLICATE',
+                        message: 'Paket Sudah Discan',
+                        item: item as unknown as SessionItem
+                    };
+                }
             }
-        });
 
-        return {
-            status: 'SUCCESS',
-            message: 'Berhasil Discan',
-            item: updated as unknown as SessionItem
-        };
+            throw error;
+        }
     }
 
     // ========================================

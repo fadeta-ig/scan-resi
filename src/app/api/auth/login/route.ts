@@ -7,7 +7,7 @@ import { getClientIP } from '@/lib/utils';
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
-        const { username, password } = body;
+        const { username, password, rememberMe } = body;
 
         if (!username || !password) {
             return NextResponse.json(
@@ -45,8 +45,8 @@ export async function POST(request: NextRequest) {
         }
 
         // Create session
-        const sessionToken = await createSession(user.id);
-        await setSessionCookie(sessionToken);
+        const sessionToken = await createSession(user.id, rememberMe);
+        await setSessionCookie(sessionToken, rememberMe);
 
         // Log activity
         await logActivity({

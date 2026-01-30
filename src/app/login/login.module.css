@@ -154,6 +154,79 @@
     color: var(--primary);
 }
 
+.rememberGroup {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: -8px;
+}
+
+.checkboxContainer {
+    display: flex;
+    align-items: center;
+    position: relative;
+    padding-left: 28px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-dim);
+    user-select: none;
+    transition: var(--transition-smooth);
+}
+
+.checkboxContainer:hover {
+    color: var(--text-main);
+}
+
+.checkboxContainer input {
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+    height: 0;
+    width: 0;
+}
+
+.checkmark {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 18px;
+    width: 18px;
+    background-color: white;
+    border: 1px solid rgba(128, 0, 0, 0.15);
+    border-radius: 6px;
+    transition: var(--transition-smooth);
+}
+
+.checkboxContainer:hover input~.checkmark {
+    border-color: var(--primary);
+}
+
+.checkboxContainer input:checked~.checkmark {
+    background-color: var(--primary);
+    border-color: var(--primary);
+}
+
+.checkmark:after {
+    content: "";
+    position: absolute;
+    display: none;
+}
+
+.checkboxContainer input:checked~.checkmark:after {
+    display: block;
+}
+
+.checkboxContainer .checkmark:after {
+    left: 6px;
+    top: 2px;
+    width: 4px;
+    height: 9px;
+    border: solid white;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}
+
 .submitButton {
     margin-top: 12px;
     padding: 18px;
