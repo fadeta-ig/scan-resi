@@ -9,8 +9,10 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { UserOptions } from 'jspdf-autotable';
 
+import { SessionDetail, SessionItem } from '@/types/session';
+
 interface ReconciliationReportProps {
-    session: any;
+    session: SessionDetail;
 }
 
 export default function ReconciliationReport({ session }: ReconciliationReportProps) {
@@ -19,10 +21,10 @@ export default function ReconciliationReport({ session }: ReconciliationReportPr
     if (!session) return null;
 
     const { stats, items, name: sessionName, createdAt } = session;
-    const filteredItems = items.filter((i: any) => i.status === activeTab);
+    const filteredItems = items.filter((i: SessionItem) => i.status === activeTab);
 
     const exportToExcel = () => {
-        const data = items.map((item: any) => ({
+        const data = items.map((item: SessionItem) => ({
             'Tracking ID': item.trackingId,
             'Recipient': item.recipient || 'N/A',
             'Product Name': item.productName || 'N/A',
@@ -68,7 +70,7 @@ export default function ReconciliationReport({ session }: ReconciliationReportPr
         doc.text(`Hilang: ${stats.missingCount}`, 145, 52);
 
         // Table
-        const tableData = items.map((item: any) => [
+        const tableData = items.map((item: SessionItem) => [
             item.trackingId,
             item.recipient || 'N/A',
             item.productName || 'N/A',
@@ -90,7 +92,7 @@ export default function ReconciliationReport({ session }: ReconciliationReportPr
                 3: { cellWidth: 15, halign: 'center' },
                 4: { cellWidth: 25, halign: 'center' }
             },
-            didParseCell: function (data: any) {
+            didParseCell: function (data: { section: string; column: { index: number }; cell: { raw: any; styles: any } }) {
                 if (data.section === 'body' && data.column.index === 3) {
                     if (data.cell.raw === 'MISSING') {
                         data.cell.styles.textColor = [220, 53, 69]; // Error Red
@@ -164,7 +166,7 @@ export default function ReconciliationReport({ session }: ReconciliationReportPr
                             <p>Tidak ada data untuk kategori ini.</p>
                         </div>
                     ) : (
-                        filteredItems.map((item: any) => (
+                        filteredItems.map((item: SessionItem) => (
                             <div key={item.id} className={styles.itemCard}>
                                 <div className={styles.itemInfo}>
                                     <h4>{item.trackingId}</h4>

@@ -1,0 +1,327 @@
+/* src/components/Sidebar/Sidebar.module.css */
+
+.adminLayout {
+    display: flex;
+    min-height: 100vh;
+    background: var(--bg-main);
+    background-image:
+        radial-gradient(at 0% 0%, rgba(var(--primary-rgb), 0.03) 0%, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(var(--primary-rgb), 0.03) 0%, transparent 50%);
+    --sidebar-width: 280px;
+}
+
+.mainContent {
+    flex: 1;
+    margin-left: var(--sidebar-width);
+    padding: 40px;
+    transition: margin-left 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.loadingContainer {
+    width: 100%;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: var(--primary);
+}
+
+.spin {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.sidebar {
+    width: 280px;
+    background: rgba(255, 255, 255, 0.4);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-right: 1px solid rgba(128, 0, 0, 0.08);
+    position: fixed;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    z-index: 1000;
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.sidebarCollapsed {
+    width: 80px;
+}
+
+.sidebarHeader {
+    padding: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 100px;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.logoCollapsed {
+    opacity: 0;
+    width: 0;
+    pointer-events: none;
+}
+
+.logoIcon {
+    width: 40px;
+    height: 40px;
+    background: white;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    border: 1px solid rgba(128, 0, 0, 0.05);
+}
+
+.logoIcon img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    padding: 4px;
+}
+
+.logoText {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: var(--primary);
+    white-space: nowrap;
+}
+
+.toggleBtn {
+    width: 32px;
+    height: 32px;
+    background: white;
+    border: 1px solid rgba(128, 0, 0, 0.1);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: var(--transition-smooth);
+    position: absolute;
+    right: -16px;
+    top: 34px;
+    z-index: 1001;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+}
+
+.toggleBtn:hover {
+    color: var(--primary);
+    background: rgba(128, 0, 0, 0.02);
+}
+
+.nav {
+    flex: 1;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.navItem {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    color: var(--text-dim);
+    font-size: 0.95rem;
+    font-weight: 500;
+    transition: var(--transition-smooth);
+    cursor: pointer;
+    text-decoration: none;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+.navItem:hover {
+    background: rgba(128, 0, 0, 0.04);
+    color: var(--primary);
+}
+
+.navItemActive {
+    background: rgba(128, 0, 0, 0.08);
+    color: var(--primary);
+    font-weight: 700;
+}
+
+.navLabel {
+    transition: all 0.3s ease;
+}
+
+.navLabelCollapsed {
+    opacity: 0;
+    transform: translateX(10px);
+}
+
+.footer {
+    padding: 16px;
+    border-top: 1px solid rgba(128, 0, 0, 0.05);
+}
+
+.userCard {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px;
+    background: white;
+    border: 1px solid rgba(128, 0, 0, 0.08);
+    border-radius: 16px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+    overflow: hidden;
+}
+
+.userCardCollapsed {
+    justify-content: center;
+    padding: 10px 0;
+}
+
+.avatar {
+    width: 36px;
+    height: 36px;
+    background: var(--primary);
+    color: white;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.85rem;
+    flex-shrink: 0;
+}
+
+.userInfo {
+    flex: 1;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.userInfoCollapsed {
+    width: 0;
+    opacity: 0;
+    display: none;
+}
+
+.userName {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text-main);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.userRole {
+    font-size: 0.65rem;
+    color: var(--text-dim);
+    font-weight: 500;
+    text-transform: uppercase;
+}
+
+.logoutBtn {
+    padding: 8px;
+    background: transparent;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    border-radius: 8px;
+    transition: var(--transition-smooth);
+    flex-shrink: 0;
+}
+
+.logoutBtn:hover {
+    background: #fdf2f2;
+    color: var(--error);
+}
+
+.logoutBtnCollapsed {
+    display: none;
+}
+
+/* Mobile Adjustments */
+.mobileHeader {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 60px;
+    background: white;
+    border-bottom: 1px solid rgba(128, 0, 0, 0.08);
+    padding: 0 16px;
+    align-items: center;
+    justify-content: space-between;
+    z-index: 900;
+    backdrop-filter: blur(10px);
+}
+
+.sidebarOverlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(4px);
+    z-index: 950;
+    animation: fadeIn 0.3s ease;
+}
+
+@media (max-width: 768px) {
+    .sidebar {
+        transform: translateX(-100%);
+    }
+
+    .sidebarOpenMobile {
+        transform: translateX(0) !important;
+        width: 280px !important;
+    }
+
+    .mobileHeader {
+        display: flex;
+    }
+
+    .sidebarOverlay {
+        display: block;
+    }
+
+    .mainContent {
+        margin-left: 0 !important;
+        padding: 80px 16px 20px 16px;
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}

@@ -7,6 +7,7 @@
     background-image:
         radial-gradient(at 0% 0%, rgba(var(--primary-rgb), 0.03) 0%, transparent 50%),
         radial-gradient(at 100% 100%, rgba(var(--primary-rgb), 0.03) 0%, transparent 50%);
+    --sidebar-width: 280px;
 }
 
 /* Sidebar */
@@ -163,8 +164,9 @@
 /* Main Content */
 .mainContent {
     flex: 1;
-    margin-left: 280px;
+    margin-left: var(--sidebar-width);
     padding: 40px;
+    transition: margin-left 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .header {

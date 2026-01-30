@@ -6,7 +6,9 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import styles from './login.module.css';
-import { PackageSearch, User, Lock, LogIn, Loader2, AlertCircle } from 'lucide-react';
+import Image from 'next/image';
+import logoImg from '@/assets/Logo WIG.png';
+import { User, Lock, LogIn, Loader2, AlertCircle } from 'lucide-react';
 
 export default function LoginPage() {
     const [username, setUsername] = useState('');
@@ -66,8 +68,15 @@ export default function LoginPage() {
         <div className={styles.loginContainer}>
             <div className={styles.loginCard}>
                 <div className={styles.logo}>
-                    <div className={styles.logoIcon}>
-                        <PackageSearch size={32} strokeWidth={1.5} />
+                    <div className={styles.logoContainer}>
+                        <Image
+                            src={logoImg}
+                            alt="Logo PT Wijaya Inovasi Gemilang"
+                            width={120}
+                            height={120}
+                            priority
+                            className={styles.logoImage}
+                        />
                     </div>
                 </div>
 
@@ -133,23 +142,7 @@ export default function LoginPage() {
                     </button>
                 </form>
 
-                <div className={styles.demoCredentials}>
-                    <p className={styles.demoTitle}>Demo Credentials</p>
-                    <div className={styles.demoList}>
-                        <div className={styles.demoItem}>
-                            <span>Super Admin:</span>
-                            <code>superadmin / super123</code>
-                        </div>
-                        <div className={styles.demoItem}>
-                            <span>Admin:</span>
-                            <code>admin / admin123</code>
-                        </div>
-                        <div className={styles.demoItem}>
-                            <span>Warehouse:</span>
-                            <code>staff / staff123</code>
-                        </div>
-                    </div>
-                </div>
+
             </div>
         </div>
     );
