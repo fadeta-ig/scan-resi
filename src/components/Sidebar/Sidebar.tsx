@@ -55,13 +55,15 @@ export default function Sidebar({ navItems, roleLabel, isCollapsed, onToggle }: 
 
     return (
         <aside className={clsx(styles.sidebar, isCollapsed && styles.sidebarCollapsed)}>
-            <button
-                className={styles.toggleBtn}
-                onClick={() => onToggle(!isCollapsed)}
-                aria-label={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
-            >
-                {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
-            </button>
+            {!isCollapsed && (
+                <button
+                    className={styles.toggleBtn}
+                    onClick={() => onToggle(!isCollapsed)}
+                    aria-label={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+                >
+                    {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+                </button>
+            )}
 
             <div className={styles.sidebarHeader}>
                 <div className={styles.logo}>

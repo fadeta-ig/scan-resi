@@ -63,15 +63,27 @@ export default function DashboardShell({
         >
             {/* Mobile Header */}
             <header className={styles.mobileHeader}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <Image src={logoImg} alt="Logo" width={24} height={24} />
-                    <span style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--primary)' }}>Wijaya Tracking</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div style={{
+                        width: 32,
+                        height: 32,
+                        background: 'white',
+                        borderRadius: 8,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: 4,
+                        border: '1px solid rgba(128, 0, 0, 0.05)'
+                    }}>
+                        <Image src={logoImg} alt="Logo" width={24} height={24} />
+                    </div>
+                    <span style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--primary)', letterSpacing: '-0.02em' }}>Wijaya Tracking</span>
                 </div>
                 <button
                     onClick={() => setShowMobileMenu(!showMobileMenu)}
-                    style={{ background: 'none', border: 'none', color: 'var(--primary)' }}
+                    className={styles.mobileCloseBtn}
                 >
-                    {showMobileMenu ? <X size={24} /> : <Menu size={24} />}
+                    {showMobileMenu ? <X size={20} /> : <Menu size={20} />}
                 </button>
             </header>
 
@@ -84,7 +96,7 @@ export default function DashboardShell({
                 <Sidebar
                     navItems={navItems}
                     roleLabel={roleLabel}
-                    isCollapsed={isCollapsed}
+                    isCollapsed={showMobileMenu ? false : isCollapsed}
                     onToggle={setIsCollapsed}
                 />
             </div>
@@ -92,6 +104,6 @@ export default function DashboardShell({
             <main className={styles.mainContent}>
                 {children}
             </main>
-        </div>
+        </div >
     );
 }
