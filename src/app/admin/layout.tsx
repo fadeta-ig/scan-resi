@@ -1,3 +1,5 @@
+"use client";
+
 /* src/app/admin/layout.tsx */
 import React from 'react';
 import { LayoutDashboard, FolderOpen } from 'lucide-react';

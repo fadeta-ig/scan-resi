@@ -1,3 +1,5 @@
+"use client";
+
 /* src/app/superadmin/layout.tsx */
 import React from 'react';
 import { LayoutDashboard, Users, FileText, FolderOpen, Scan } from 'lucide-react';
