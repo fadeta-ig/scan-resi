@@ -5,6 +5,7 @@ import React, { useState, useEffect, useRef, useCallback, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import styles from '../../warehouse.module.css';
+import { clsx } from 'clsx';
 import {
     ArrowLeft,
     CheckCircle,
@@ -116,12 +117,14 @@ export default function WarehouseScanPage({ params }: { params: Promise<{ id: st
 
     useEffect(() => {
         if (scanMode === 'camera') {
-            const timer = setTimeout(() => {
-                if (cameraRef.current) {
+            // Poll for the element to be ready before starting camera
+            const checkElement = setInterval(() => {
+                if (document.getElementById("camera-view")) {
                     setCameraReady(true);
+                    clearInterval(checkElement);
                 }
-            }, 100);
-            return () => clearTimeout(timer);
+            }, 50);
+            return () => clearInterval(checkElement);
         } else {
             setCameraReady(false);
         }
@@ -171,7 +174,7 @@ export default function WarehouseScanPage({ params }: { params: Promise<{ id: st
 
             await html5QrCodeRef.current.start(
                 backCamera?.id || cameras[0].id,
-                { fps: 15, qrbox: { width: 280, height: 180 } },
+                { fps: 20, qrbox: { width: 260, height: 260 }, aspectRatio: 1.0 },
                 (decodedText) => {
                     if (!scanCooldownRef.current) {
                         scanCooldownRef.current = true;
@@ -322,7 +325,7 @@ export default function WarehouseScanPage({ params }: { params: Promise<{ id: st
 
             {/* Feedback Overlay */}
             {feedback && (
-                <div className={`${styles.overlay} ${styles[`overlay${feedback}`]}`}>
+                <div className={`${styles.feedbackOverlay} ${styles[`overlay${feedback}`]}`}>
                     <div className={styles.overlayIcon}>
                         {feedback === 'SUCCESS' ? (
                             <div style={{ background: 'rgba(255, 255, 255, 0.2)', padding: 30, borderRadius: '50%' }}>
@@ -452,15 +455,29 @@ export default function WarehouseScanPage({ params }: { params: Promise<{ id: st
                                 </button>
                             </div>
                         ) : (
-                            <>
-                                <div ref={cameraRef} id="camera-view" className={styles.cameraView}></div>
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 12 }}>
-                                    <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: cameraActive ? 'var(--success)' : 'var(--text-dim)', animation: cameraActive ? 'pulse 2s infinite' : 'none' }}></div>
+                            <div className={styles.scannerWrapper}>
+                                <div className={styles.cameraView}>
+                                    <div ref={cameraRef} id="camera-view" className={styles.reader}></div>
+
+                                    {/* QRIS Style Overlay */}
+                                    <div className={styles.cameraOverlay}>
+                                        <div className={styles.scanRegion}>
+                                            <div className={clsx(styles.corner, styles.topLeft)}></div>
+                                            <div className={clsx(styles.corner, styles.topRight)}></div>
+                                            <div className={clsx(styles.corner, styles.bottomLeft)}></div>
+                                            <div className={clsx(styles.corner, styles.bottomRight)}></div>
+                                            <div className={styles.scanLine}></div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 16 }}>
+                                    <div className={clsx(styles.statusDot, cameraActive && styles.statusDotActive)}></div>
                                     <p className={styles.hint} style={{ margin: 0 }}>
                                         {cameraActive ? 'Kamera aktif - Siap memindai' : 'Sedang memuat kamera...'}
                                     </p>
                                 </div>
-                            </>
+                            </div>
                         )}
                     </div>
                 )}

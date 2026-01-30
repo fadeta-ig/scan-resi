@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Html5QrcodeScanner } from 'html5-qrcode';
+import { Html5Qrcode } from 'html5-qrcode';
 import styles from './Scanner.module.css';
-import { CheckCircle2, AlertCircle, Loader2, Camera } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Loader2, Camera, RefreshCw } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useToast } from '@/contexts/ToastContext';
 
@@ -16,34 +16,72 @@ export default function Scanner({ sessionId, onScanResult }: ScannerProps) {
     const [status, setStatus] = useState<'IDLE' | 'SCANNING' | 'SUCCESS' | 'ERROR' | 'WARNING'>('IDLE');
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
     const [lastScanned, setLastScanned] = useState<any>(null);
-    const scannerRef = useRef<Html5QrcodeScanner | null>(null);
+    const [isMounted, setIsMounted] = useState(false);
+
+    const html5QrCode = useRef<Html5Qrcode | null>(null);
+    const isScanning = useRef(false);
+
+    const { success, error: toastError, warning } = useToast();
 
     useEffect(() => {
-        // We recreate the scanner if the sessionId changes
-        const scanner = new Html5QrcodeScanner(
-            "reader",
-            {
-                fps: 20,
-                qrbox: { width: 250, height: 250 },
-                aspectRatio: 1.0,
-            },
-      /* verbose= */ false
-        );
-
-        scanner.render(onScan, (err) => {
-            // Silent error for frame failures
-        });
-        scannerRef.current = scanner;
-
+        setIsMounted(true);
         return () => {
-            if (scannerRef.current) {
-                scannerRef.current.clear().catch(err => console.error("Failed to clear scanner", err));
-            }
+            stopScanner();
         };
-    }, [sessionId]);
+    }, []);
+
+    useEffect(() => {
+        if (isMounted) {
+            startScanner();
+        }
+    }, [isMounted, sessionId]);
+
+    const startScanner = async () => {
+        try {
+            // If already exists, stop it first
+            await stopScanner();
+
+            const element = document.getElementById("reader");
+            if (!element) {
+                console.error("Scanner element #reader not found");
+                return;
+            }
+
+            html5QrCode.current = new Html5Qrcode("reader");
+
+            const config = {
+                fps: 15, // Optimized for mobile
+                qrbox: { width: 260, height: 260 },
+                aspectRatio: 1.0,
+            };
+
+            await html5QrCode.current.start(
+                { facingMode: "environment" },
+                config,
+                onScan,
+                () => { /* Silent frame error */ }
+            );
+
+            isScanning.current = true;
+        } catch (err) {
+            console.error("Failed to start scanner:", err);
+            setErrorMsg("Gagal mengakses kamera. Pastikan izin diberikan.");
+            setStatus('ERROR');
+        }
+    };
+
+    const stopScanner = async () => {
+        if (html5QrCode.current && isScanning.current) {
+            try {
+                await html5QrCode.current.stop();
+                isScanning.current = false;
+            } catch (err) {
+                console.warn("Error stopping scanner", err);
+            }
+        }
+    };
 
     const playSound = (type: 'success' | 'error' | 'warning') => {
-        // Using standard notification sounds if available or silent fallback
         try {
             const audio = new Audio(
                 type === 'success' ? 'https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3' :
@@ -54,10 +92,9 @@ export default function Scanner({ sessionId, onScanResult }: ScannerProps) {
         } catch (e) { }
     };
 
-    const { success, error: toastError, warning } = useToast();
-
     async function onScan(decodedText: string) {
-        if (status === 'SCANNING') return;
+        // Prevent multiple simultaneous processing
+        if (status === 'SCANNING' || status === 'SUCCESS') return;
 
         setStatus('SCANNING');
         try {
@@ -89,7 +126,11 @@ export default function Scanner({ sessionId, onScanResult }: ScannerProps) {
                     toastError(result.message || 'Paket tidak terdaftar', 'Gagal');
                 }
 
-                setTimeout(() => setStatus('IDLE'), 3000);
+                // Reset status to allow next scan after delay
+                setTimeout(() => {
+                    setStatus('IDLE');
+                    setErrorMsg(null);
+                }, 2000);
             } else {
                 const msg = result.error || 'Gagal memproses scan';
                 toastError(msg, 'Kesalahan');
@@ -99,7 +140,7 @@ export default function Scanner({ sessionId, onScanResult }: ScannerProps) {
             setStatus('ERROR');
             setErrorMsg(err.message);
             playSound('error');
-            setTimeout(() => setStatus('IDLE'), 5000);
+            setTimeout(() => setStatus('IDLE'), 3000);
         }
     }
 
@@ -111,18 +152,37 @@ export default function Scanner({ sessionId, onScanResult }: ScannerProps) {
                 status === 'SCANNING' && styles.statusWaiting,
                 status === 'SUCCESS' && styles.statusSuccess,
                 status === 'ERROR' && styles.statusError,
-                status === 'WARNING' && styles.statusError // Simplified CSS reuse
+                status === 'WARNING' && styles.statusError
             )}>
                 {status === 'IDLE' && <><Camera size={18} /> Arahkan ke Barcode...</>}
                 {status === 'SCANNING' && <><Loader2 size={18} className="spin" /> Checking...</>}
-                {status === 'SUCCESS' && <><CheckCircle2 size={18} /> {lastScanned?.trackingId} OK!</>}
-                {status === 'ERROR' && <><AlertCircle size={18} /> {errorMsg || 'Invalid ID'}</>}
-                {status === 'WARNING' && <><AlertCircle size={18} /> {errorMsg || 'Sudah Discan'}</>}
+                {status === 'SUCCESS' && <><CheckCircle2 size={18} /> Berhasil!</>}
+                {status === 'ERROR' && <><AlertCircle size={18} /> {errorMsg || 'Gagal'}</>}
+                {status === 'WARNING' && <><AlertCircle size={18} /> {errorMsg || 'Duplicate'}</>}
             </div>
 
             <div className={styles.scannerContainer}>
                 <div id="reader" className={styles.reader}></div>
+
+                {/* Custom QRIS Overlay */}
+                <div className={styles.overlay}>
+                    <div className={styles.scanRegion}>
+                        <div className={clsx(styles.corner, styles.topLeft)}></div>
+                        <div className={clsx(styles.corner, styles.topRight)}></div>
+                        <div className={clsx(styles.corner, styles.bottomLeft)}></div>
+                        <div className={clsx(styles.corner, styles.bottomRight)}></div>
+                        <div className={styles.scanLine}></div>
+                    </div>
+                </div>
             </div>
+
+            <button
+                className={clsx('btn-ghost', styles.retryBtn)}
+                onClick={() => startScanner()}
+                title="Restart Camera"
+            >
+                <RefreshCw size={16} /> Aktifkan Kamera
+            </button>
 
             {lastScanned && (
                 <div className={clsx(styles.resultCard, 'glass', 'animate-fade-in')}>
@@ -133,7 +193,7 @@ export default function Scanner({ sessionId, onScanResult }: ScannerProps) {
                         }}>
                             {lastScanned.trackingId}
                         </h3>
-                        <p>{lastScanned.recipient || 'No Recipient'}</p>
+                        <p>{lastScanned.recipient || 'Tidak ada data penerima'}</p>
                     </div>
                 </div>
             )}

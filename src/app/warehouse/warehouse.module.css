@@ -409,20 +409,153 @@
     gap: 16px;
 }
 
+.scannerWrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+}
+
 .cameraView {
     width: 100%;
     aspect-ratio: 1;
     background: #000;
-    border-radius: 28px;
+    border-radius: 32px;
     overflow: hidden;
-    border: 4px solid var(--glass-border);
-    box-shadow: var(--glass-shadow);
+    position: relative;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--glass-border);
 }
 
-.cameraView video {
+.reader {
+    width: 100%;
+    height: 100%;
+}
+
+.reader video {
     width: 100% !important;
     height: 100% !important;
     object-fit: cover !important;
+}
+
+/* QRIS Style Overlay */
+.cameraOverlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    pointer-events: none;
+}
+
+.scanRegion {
+    position: relative;
+    width: 260px;
+    height: 260px;
+    box-shadow: 0 0 0 4000px rgba(0, 0, 0, 0.4);
+    border-radius: 24px;
+}
+
+.corner {
+    position: absolute;
+    width: 32px;
+    height: 32px;
+    border: 4px solid #fff;
+    pointer-events: none;
+    z-index: 12;
+}
+
+.topLeft {
+    top: -2px;
+    left: -2px;
+    border-right: none;
+    border-bottom: none;
+    border-top-left-radius: 24px;
+}
+
+.topRight {
+    top: -2px;
+    right: -2px;
+    border-left: none;
+    border-bottom: none;
+    border-top-right-radius: 24px;
+}
+
+.bottomLeft {
+    bottom: -2px;
+    left: -2px;
+    border-right: none;
+    border-top: none;
+    border-bottom-left-radius: 24px;
+}
+
+.bottomRight {
+    bottom: -2px;
+    right: -2px;
+    border-left: none;
+    border-top: none;
+    border-bottom-right-radius: 24px;
+}
+
+.scanLine {
+    position: absolute;
+    top: 0;
+    left: 20px;
+    right: 20px;
+    height: 3px;
+    background: linear-gradient(to right, transparent, var(--primary), transparent);
+    box-shadow: 0 0 20px var(--primary);
+    animation: scanMove 2.5s ease-in-out infinite;
+    z-index: 11;
+}
+
+@keyframes scanMove {
+
+    0%,
+    100% {
+        top: 10%;
+        opacity: 0.3;
+    }
+
+    50% {
+        top: 90%;
+        opacity: 1;
+    }
+}
+
+.statusDot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--text-dim);
+    transition: all 0.3s ease;
+}
+
+.statusDotActive {
+    background: var(--success);
+    box-shadow: 0 0 10px var(--success);
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(0.95);
+        opacity: 0.5;
+    }
+
+    50% {
+        transform: scale(1.1);
+        opacity: 1;
+    }
+
+    100% {
+        transform: scale(0.95);
+        opacity: 0.5;
+    }
 }
 
 .errorBox {
@@ -540,7 +673,7 @@
 }
 
 /* Feedback Overlay */
-.overlay {
+.feedbackOverlay {
     position: fixed;
     inset: 0;
     display: flex;
