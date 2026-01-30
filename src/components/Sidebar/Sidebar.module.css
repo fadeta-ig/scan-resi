@@ -295,11 +295,17 @@
 @media (max-width: 768px) {
     .sidebar {
         transform: translateX(-100%);
+        width: 280px !important;
+        position: fixed;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        z-index: 1000;
     }
 
-    .sidebarOpenMobile {
+    .sidebarOpenMobile .sidebar {
         transform: translateX(0) !important;
-        width: 280px !important;
+        box-shadow: 20px 0 50px rgba(0, 0, 0, 0.2);
     }
 
     .mobileHeader {

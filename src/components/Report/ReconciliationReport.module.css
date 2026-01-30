@@ -148,20 +148,50 @@
     color: var(--text-dim);
 }
 
-.badge {
-    padding: 4px 10px;
-    border-radius: 6px;
-    font-size: 0.7rem;
-    font-weight: 800;
-    text-transform: uppercase;
-}
+/* Mobile Adjustments */
+@media (max-width: 768px) {
+    .statsGrid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
 
-.badgeScanned {
-    background: rgba(40, 167, 69, 0.1);
-    color: var(--success);
-}
+    .statCard {
+        padding: 16px;
+    }
 
-.badgeMissing {
-    background: rgba(220, 53, 69, 0.1);
-    color: var(--error);
+    .statValue {
+        font-size: 1.5rem;
+    }
+
+    .tabs {
+        flex-direction: column;
+        gap: 0;
+        border-bottom: none;
+    }
+
+    .tab {
+        width: 100%;
+        text-align: left;
+        padding: 12px 16px;
+        border-bottom: 1px solid #f1f1f1;
+    }
+
+    .tabActive::after {
+        left: 0;
+        width: 4px;
+        height: 100%;
+        bottom: 0;
+    }
+
+    .itemCard {
+        padding: 12px 16px;
+    }
+
+    .itemInfo h4 {
+        font-size: 0.85rem;
+    }
+
+    .exportButtons {
+        flex-direction: column;
+    }
 }

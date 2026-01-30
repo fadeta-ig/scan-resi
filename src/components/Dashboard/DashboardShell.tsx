@@ -9,6 +9,7 @@ import { Loader2, LucideIcon, Menu, X } from 'lucide-react';
 import Image from 'next/image';
 import logoImg from '@/assets/Logo WIG.png';
 import { clsx } from 'clsx';
+import { usePathname } from 'next/navigation';
 
 interface NavItem {
     href: string;
@@ -33,6 +34,12 @@ export default function DashboardShell({
     const { loading, isAuthorized } = useRequireAuth(requiredRoles);
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [showMobileMenu, setShowMobileMenu] = useState(false);
+    const pathname = usePathname();
+
+    // Auto-close mobile menu on navigation
+    React.useEffect(() => {
+        setShowMobileMenu(false);
+    }, [pathname]);
 
     if (loading) {
         return (

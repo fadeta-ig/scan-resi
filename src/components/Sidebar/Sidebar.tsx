@@ -34,12 +34,19 @@ export default function Sidebar({ navItems, roleLabel, isCollapsed, onToggle }: 
     const { user, logout } = useAuth();
     const pathname = usePathname();
 
-    // Auto-collapse on small screens
+    // Auto-collapse logic
     useEffect(() => {
-        if (window.innerWidth < 1024) {
-            onToggle(true);
-        }
-    }, []);
+        const handleResize = () => {
+            if (window.innerWidth < 1024) {
+                onToggle(true);
+            }
+        };
+
+        window.addEventListener('resize', handleResize);
+        handleResize(); // Run on mount
+
+        return () => window.removeEventListener('resize', handleResize);
+    }, [onToggle]);
 
     const isActive = (href: string, exact?: boolean) => {
         if (exact) return pathname === href;

@@ -791,3 +791,62 @@
     font-weight: 800;
     font-size: 1.5rem;
 }
+
+/* Mobile Optimizations (Small Screens) */
+@media (max-width: 480px) {
+    .header {
+        padding: 12px 16px;
+    }
+
+    .logoIcon {
+        width: 34px;
+        height: 34px;
+    }
+
+    .logoText {
+        font-size: 0.95rem;
+    }
+
+    .mainContent {
+        padding: 16px 12px;
+    }
+
+    .statsBar {
+        flex-direction: column;
+        gap: 16px;
+        padding: 20px;
+        margin: 0 12px 16px;
+    }
+
+    .statDivider {
+        display: none;
+    }
+
+    .statNum {
+        font-size: 1.5rem;
+    }
+
+    .tabs {
+        padding: 0 12px;
+        gap: 8px;
+    }
+
+    .tab {
+        padding: 12px 8px;
+        font-size: 0.75rem;
+        border-radius: 16px;
+    }
+
+    .scanContent {
+        padding: 0 12px 20px;
+    }
+
+    .overlayText {
+        font-size: 1.75rem;
+    }
+
+    .overlayId {
+        font-size: 1rem;
+        padding: 8px 24px;
+    }
+}

@@ -236,3 +236,35 @@
 .spin {
     animation: spin 1s linear infinite;
 }
+
+/* Mobile Optimizations */
+@media (max-width: 480px) {
+    .loginCard {
+        padding: 32px 24px;
+        border-radius: 24px;
+    }
+
+    .logoContainer {
+        width: 100px;
+        height: 100px;
+        border-radius: 20px;
+        margin-bottom: 24px;
+    }
+
+    .title {
+        font-size: 1.4rem;
+    }
+
+    .subtitle {
+        font-size: 0.85rem;
+        margin-bottom: 32px;
+    }
+
+    .form {
+        gap: 16px;
+    }
+
+    .submitButton {
+        padding: 16px;
+    }
+}
