@@ -7,14 +7,31 @@ import { ToastProvider } from "@/contexts/ToastContext";
 export const metadata: Metadata = {
   title: "Sistem Pelacakan Paket E-Commerce | PT Wijaya Inovasi Gemilang",
   description: "Dashboard Rekonsiliasi Logistik Profesional dengan pemindaian barcode dan kontrol akses multi-peran.",
-  manifest: "/manifest.json",
-  themeColor: "#800000",
+  manifest: "/site.webmanifest",
+  icons: {
+    icon: [
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/favicon.ico", sizes: "any" },
+    ],
+    apple: [
+      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+    ],
+    other: [
+      {
+        rel: "mask-icon",
+        url: "/file.svg",
+        color: "#5bbad5",
+      },
+    ],
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
     title: "Scan Resi",
   },
 };
+
 
 export default function RootLayout({
   children,
