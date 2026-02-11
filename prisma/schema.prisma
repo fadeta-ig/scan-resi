@@ -5,7 +5,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
   url      = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
@@ -41,9 +41,9 @@ model ActivityLog {
   userId      String
   user        User     @relation(fields: [userId], references: [id])
   action      String   // CREATE_SESSION, UPLOAD_EXCEL, SCAN_ITEM, LOGIN, LOGOUT, etc.
-  details     String?  // JSON string with additional context
+  details     String?  @db.Text // JSON string with additional context
   ipAddress   String?
-  userAgent   String?
+  userAgent   String?  @db.Text
   createdAt   DateTime @default(now())
 
   @@index([userId])
@@ -73,9 +73,9 @@ model SessionItem {
   id           String          @id @default(cuid())
   sessionId    String
   session      ScanningSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  trackingId   String
-  recipient    String?
-  productName  String?
+  trackingId   String          @db.VarChar(500)
+  recipient    String?         @db.Text
+  productName  String?         @db.Text
   status       String          @default("UNSCANNED") // "UNSCANNED" or "SCANNED"
   scannedAt    DateTime?
   

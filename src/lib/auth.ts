@@ -62,7 +62,7 @@ export async function setSessionCookie(sessionToken: string, rememberMe: boolean
 
     cookieStore.set(SESSION_COOKIE_NAME, sessionToken, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
+        secure: process.env.COOKIE_SECURE === 'true',
         sameSite: 'lax',
         maxAge: duration / 1000, // Convert to seconds
         path: '/'
