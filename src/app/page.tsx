@@ -42,7 +42,9 @@ export default function Home() {
       <div style={{
         background: 'rgba(255, 255, 255, 0.7)',
         backdropFilter: 'blur(20px)',
-        padding: '40px 60px',
+        padding: '32px 24px',
+        width: 'calc(100% - 40px)',
+        maxWidth: '400px',
         borderRadius: 32,
         border: '1px solid rgba(255, 255, 255, 0.4)',
         boxShadow: '0 8px 32px 0 rgba(128, 0, 0, 0.08)',
