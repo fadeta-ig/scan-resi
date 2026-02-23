@@ -163,19 +163,47 @@ export default function WarehouseScanPage({ params }: { params: Promise<{ id: st
                 try { await html5QrCodeRef.current.stop(); } catch (e) { }
             }
 
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            let cameraConfig: any = { facingMode: { ideal: 'environment' } };
+
+            try {
+                const devices = await Html5Qrcode.getCameras();
+                if (devices && devices.length > 0) {
+                    // Filter out ultra-wide lenses, prioritize normal back camera
+                    let selectedCamera = devices.find(device => {
+                        const label = device.label.toLowerCase();
+                        return label.includes('back') &&
+                            !label.includes('ultra') &&
+                            !label.includes('wide') &&
+                            !label.includes('0.5');
+                    });
+
+                    if (!selectedCamera) {
+                        selectedCamera = devices.find(device =>
+                            device.label.toLowerCase().includes('back')
+                        );
+                    }
+
+                    if (selectedCamera) {
+                        cameraConfig = selectedCamera.id;
+                    }
+                }
+            } catch (e) {
+                console.warn("Gagal mengambil spesifik device ID, menggunakan fallback environment", e);
+            }
+
             html5QrCodeRef.current = new Html5Qrcode("camera-view", {
                 formatsToSupport: BARCODE_FORMATS,
                 verbose: false
             });
 
             await html5QrCodeRef.current.start(
-                { facingMode: { ideal: 'environment' } },
+                cameraConfig,
                 {
                     fps: 20,
                     qrbox: { width: 260, height: 260 },
                     aspectRatio: 1.0,
                     videoConstraints: {
-                        facingMode: { ideal: 'environment' },
                         // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         ...({ zoom: { ideal: 1 } } as any)
                     } as MediaTrackConstraints
@@ -184,7 +212,6 @@ export default function WarehouseScanPage({ params }: { params: Promise<{ id: st
                     if (isProcessingRef.current) return;
                     isProcessingRef.current = true;
 
-                    // Pause scanning immediately to prevent double scan
                     if (html5QrCodeRef.current) {
                         try { await html5QrCodeRef.current.pause(); } catch (e) { }
                     }
