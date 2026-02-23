@@ -168,20 +168,18 @@ export default function WarehouseScanPage({ params }: { params: Promise<{ id: st
                 verbose: false
             });
 
-            const cameras = await Html5Qrcode.getCameras();
-            if (!cameras || cameras.length === 0) {
-                throw new Error('Tidak ada kamera yang ditemukan');
-            }
-
-            const backCamera = cameras.find(c =>
-                c.label.toLowerCase().includes('back') ||
-                c.label.toLowerCase().includes('rear') ||
-                c.label.toLowerCase().includes('environment')
-            );
-
             await html5QrCodeRef.current.start(
-                backCamera?.id || cameras[0].id,
-                { fps: 20, qrbox: { width: 260, height: 260 }, aspectRatio: 1.0 },
+                { facingMode: { ideal: 'environment' } },
+                {
+                    fps: 20,
+                    qrbox: { width: 260, height: 260 },
+                    aspectRatio: 1.0,
+                    videoConstraints: {
+                        facingMode: { ideal: 'environment' },
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        ...({ zoom: { ideal: 1 } } as any)
+                    } as MediaTrackConstraints
+                },
                 async (decodedText) => {
                     if (isProcessingRef.current) return;
                     isProcessingRef.current = true;
