@@ -257,6 +257,17 @@ export class SessionService {
         });
     }
 
+    /**
+     * Get a specific item in a session by tracking ID (Lookup)
+     */
+    static async getItem(sessionId: string, trackingId: string) {
+        return prisma.sessionItem.findUnique({
+            where: {
+                sessionId_trackingId: { sessionId, trackingId }
+            }
+        });
+    }
+
     // ========================================
     // Scanning
     // ========================================

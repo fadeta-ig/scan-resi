@@ -16,7 +16,9 @@ import {
     Search01Icon,
     Tick02Icon,
     PencilEdit01Icon,
-    Delete02Icon
+    Delete02Icon,
+    ViewIcon,
+    Cancel01Icon
 } from 'hugeicons-react';
 import { cn } from '@/lib/utils';
 import * as XLSX from 'xlsx';
@@ -88,6 +90,7 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
     // Super Admin CRUD states
     const [showEditItemModal, setShowEditItemModal] = useState(false);
     const [showDeleteItemModal, setShowDeleteItemModal] = useState(false);
+    const [showViewModal, setShowViewModal] = useState(false);
     const [selectedItem, setSelectedItem] = useState<SessionItem | null>(null);
     const [editItemData, setEditItemData] = useState({
         trackingId: '',
@@ -454,13 +457,13 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                                 <TableHead>Kurir</TableHead>
                                 <TableHead>Status</TableHead>
                                 <TableHead>Waktu Scan</TableHead>
-                                {authUser?.role === 'SUPER_ADMIN' && <TableHead className="text-right">Aksi</TableHead>}
+                                <TableHead className="text-right">Aksi</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {paginatedItems.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={5} className="text-center h-48 text-muted-foreground">
+                                    <TableCell colSpan={7} className="text-center h-48 text-muted-foreground">
                                         Tidak ada data yang sesuai filter
                                     </TableCell>
                                 </TableRow>
@@ -488,42 +491,57 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                                                 : '-'
                                             }
                                         </TableCell>
-                                        {authUser?.role === 'SUPER_ADMIN' && (
-                                            <TableCell className="text-right">
-                                                <div className="flex items-center justify-end gap-1">
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className="h-8 w-8 text-amber-600"
-                                                        onClick={() => {
-                                                            setSelectedItem(item);
-                                                            setEditItemData({
-                                                                trackingId: item.trackingId,
-                                                                productName: item.productName || '',
-                                                                variation: item.variation || '',
-                                                                deliveryOption: item.deliveryOption || '',
-                                                                shippingProvider: item.shippingProvider || '',
-                                                                status: item.status
-                                                            });
-                                                            setShowEditItemModal(true);
-                                                        }}
-                                                    >
-                                                        <PencilEdit01Icon size={16} />
-                                                    </Button>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className="h-8 w-8 text-red-600"
-                                                        onClick={() => {
-                                                            setSelectedItem(item);
-                                                            setShowDeleteItemModal(true);
-                                                        }}
-                                                    >
-                                                        <Delete02Icon size={16} />
-                                                    </Button>
-                                                </div>
-                                            </TableCell>
-                                        )}
+                                        <TableCell className="text-right">
+                                            <div className="flex items-center justify-end gap-1">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-8 w-8 text-primary"
+                                                    onClick={() => {
+                                                        setSelectedItem(item);
+                                                        setShowViewModal(true);
+                                                    }}
+                                                    title="Lihat Detail"
+                                                >
+                                                    <ViewIcon size={16} />
+                                                </Button>
+
+                                                {authUser?.role === 'SUPER_ADMIN' && (
+                                                    <>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-8 w-8 text-amber-600"
+                                                            onClick={() => {
+                                                                setSelectedItem(item);
+                                                                setEditItemData({
+                                                                    trackingId: item.trackingId,
+                                                                    productName: item.productName || '',
+                                                                    variation: item.variation || '',
+                                                                    deliveryOption: item.deliveryOption || '',
+                                                                    shippingProvider: item.shippingProvider || '',
+                                                                    status: item.status
+                                                                });
+                                                                setShowEditItemModal(true);
+                                                            }}
+                                                        >
+                                                            <PencilEdit01Icon size={16} />
+                                                        </Button>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-8 w-8 text-red-600"
+                                                            onClick={() => {
+                                                                setSelectedItem(item);
+                                                                setShowDeleteItemModal(true);
+                                                            }}
+                                                        >
+                                                            <Delete02Icon size={16} />
+                                                        </Button>
+                                                    </>
+                                                )}
+                                            </div>
+                                        </TableCell>
                                     </TableRow>
                                 ))
                             )}
@@ -660,6 +678,103 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                             Hapus Sekarang
                         </Button>
                     </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* View Detail Modal */}
+            <Dialog open={showViewModal} onOpenChange={setShowViewModal}>
+                <DialogContent className="max-w-md p-0 overflow-hidden border-none shadow-2xl rounded-2xl">
+                    <div className="bg-primary p-6 text-white relative">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="absolute right-4 top-4 text-white/80 hover:text-white hover:bg-white/10 rounded-full"
+                            onClick={() => setShowViewModal(false)}
+                        >
+                            <Cancel01Icon size={20} />
+                        </Button>
+                        <div className="flex items-center gap-3 mb-1">
+                            <div className="p-2 bg-white/20 rounded-lg">
+                                <PackageIcon size={24} />
+                            </div>
+                            <h3 className="text-xl font-bold tracking-tight">Rincian Paket</h3>
+                        </div>
+                        <p className="text-white/60 text-sm font-medium tracking-wide uppercase">Informasi Lengkap No Resi</p>
+                    </div>
+
+                    <div className="p-6 space-y-6 bg-white">
+                        <div className="space-y-4">
+                            <div className="grid grid-cols-3 gap-2 py-3 border-b border-gray-50 items-start">
+                                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">No Resi</span>
+                                <span className="col-span-2 font-mono font-bold text-primary select-all">{selectedItem?.trackingId}</span>
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-2 py-3 border-b border-gray-50 items-start">
+                                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Status</span>
+                                <div className="col-span-2">
+                                    {selectedItem?.status === 'SCANNED' ? (
+                                        <span className="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-3 py-1 text-xs font-bold text-green-700 border border-green-100">
+                                            <Tick02Icon size={14} /> Terkirim
+                                        </span>
+                                    ) : (
+                                        <span className="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-3 py-1 text-xs font-bold text-red-700 border border-red-100">
+                                            <Alert01Icon size={14} /> Tertinggal
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-2 py-3 border-b border-gray-50 items-start">
+                                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Produk</span>
+                                <span className="col-span-2 text-sm font-medium leading-relaxed">{selectedItem?.productName || '-'}</span>
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-2 py-3 border-b border-gray-50 items-start">
+                                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Variasi</span>
+                                <span className="col-span-2 text-sm font-medium">{selectedItem?.variation || '-'}</span>
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-2 py-3 border-b border-gray-50 items-start">
+                                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Kurir</span>
+                                <div className="col-span-2 space-y-1">
+                                    <span className="text-sm font-bold block">{selectedItem?.shippingProvider || '-'}</span>
+                                    <span className="text-xs text-muted-foreground block">{selectedItem?.deliveryOption || '-'}</span>
+                                </div>
+                            </div>
+
+                            {selectedItem?.status === 'SCANNED' && (
+                                <div className="grid grid-cols-3 gap-2 py-3 border-b border-gray-50 items-start">
+                                    <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Waktu Scan</span>
+                                    <div className="col-span-2 space-y-1">
+                                        <span className="text-sm font-medium block">
+                                            {selectedItem.scannedAt ? new Date(selectedItem.scannedAt).toLocaleString('id-ID', {
+                                                weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+                                            }) : '-'}
+                                        </span>
+                                        <span className="text-xs text-primary font-bold block">
+                                            {selectedItem.scannedAt ? new Date(selectedItem.scannedAt).toLocaleTimeString('id-ID', {
+                                                hour: '2-digit', minute: '2-digit', second: '2-digit'
+                                            }) : ''}
+                                        </span>
+                                        {selectedItem.scannedBy && (
+                                            <span className="text-[10px] text-muted-foreground italic block mt-1">
+                                                Oleh: {selectedItem.scannedBy.name}
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="pt-2">
+                            <Button
+                                className="w-full h-11 bg-primary hover:bg-primary/90 text-white font-bold rounded-xl shadow-lg shadow-primary/20 transition-all active:scale-95"
+                                onClick={() => setShowViewModal(false)}
+                            >
+                                Tutup Detail
+                            </Button>
+                        </div>
+                    </div>
                 </DialogContent>
             </Dialog>
         </div>
