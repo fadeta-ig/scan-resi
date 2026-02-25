@@ -13,8 +13,14 @@ import type {
 const HEADER_PATTERNS = {
     tracking: ['tracking id', 'resi', 'barcode', 'no resi', 'nomor resi', 'awb'],
     product: ['product name', 'nama produk', 'produk', 'item', 'barang'],
-    recipient: ['recipient', 'penerima', 'nama penerima', 'customer']
+    variation: ['variation', 'variasi', 'varian'],
+    deliveryOption: ['delivery option', 'opsi pengiriman', 'tipe pengiriman'],
+    shippingProvider: ['shipping provider name', 'shipping provider', 'kurir', 'ekspedisi'],
+    substatus: ['order substatus', 'substatus', 'sub status', 'sub-status']
 };
+
+// Status filter: hanya import baris dengan substatus ini
+const REQUIRED_SUBSTATUS = 'menunggu pengambilan';
 
 /**
  * Session Service - Handles all session and scanning operations
@@ -37,29 +43,62 @@ export class SessionService {
             throw new Error('File Excel kosong atau tidak memiliki data.');
         }
 
-        const headers = rows[0].map((h) => String(h || '').toLowerCase().trim());
+        // Cari baris header yang sebenarnya (skip baris deskripsi di bawah header)
+        // Header biasanya baris pertama yang mengandung kata kunci kolom tracking
+        let headerRowIdx = 0;
+        let headers: string[] = [];
+        for (let i = 0; i < Math.min(5, rows.length); i++) {
+            const candidate = rows[i].map((h) => String(h || '').toLowerCase().trim());
+            if (this.findHeaderIndex(candidate, HEADER_PATTERNS.tracking) !== -1) {
+                headerRowIdx = i;
+                headers = candidate;
+                break;
+            }
+        }
+
+        if (headers.length === 0) {
+            throw new Error('Baris header tidak ditemukan dalam file Excel.');
+        }
 
         // Find column indices
         const trackingIdx = this.findHeaderIndex(headers, HEADER_PATTERNS.tracking);
         const productIdx = this.findHeaderIndex(headers, HEADER_PATTERNS.product);
-        const recipientIdx = this.findHeaderIndex(headers, HEADER_PATTERNS.recipient);
+        const variationIdx = this.findHeaderIndex(headers, HEADER_PATTERNS.variation);
+        const deliveryOptionIdx = this.findHeaderIndex(headers, HEADER_PATTERNS.deliveryOption);
+        const shippingProviderIdx = this.findHeaderIndex(headers, HEADER_PATTERNS.shippingProvider);
+        const substatusIdx = this.findHeaderIndex(headers, HEADER_PATTERNS.substatus);
 
         if (trackingIdx === -1) {
-            throw new Error('Kolom "Tracking ID" / "Resi" tidak ditemukan dalam file Excel.');
+            throw new Error('Kolom "Order ID" / "Tracking ID" / "Resi" tidak ditemukan dalam file Excel.');
         }
 
-        // Parse rows and deduplicate
+        // Parse rows, filter by substatus, and deduplicate
         const itemMap = new Map<string, ExcelItem>();
+        let skippedCount = 0;
 
-        for (let i = 1; i < rows.length; i++) {
+        for (let i = headerRowIdx + 1; i < rows.length; i++) {
             const row = rows[i];
-            const trackingId = String(row[trackingIdx] || '').trim();
+            if (!row || row.every(cell => !cell)) continue; // skip empty rows
 
-            if (trackingId && !itemMap.has(trackingId)) {
+            const trackingId = String(row[trackingIdx] || '').trim();
+            if (!trackingId) continue;
+
+            // Filter berdasarkan Order Substatus jika kolom ada
+            if (substatusIdx !== -1) {
+                const substatus = String(row[substatusIdx] || '').toLowerCase().trim();
+                if (substatus !== REQUIRED_SUBSTATUS) {
+                    skippedCount++;
+                    continue; // lewati baris yang bukan "Menunggu pengambilan"
+                }
+            }
+
+            if (!itemMap.has(trackingId)) {
                 itemMap.set(trackingId, {
                     trackingId,
-                    productName: productIdx !== -1 ? String(row[productIdx] || 'N/A') : 'N/A',
-                    recipient: recipientIdx !== -1 ? String(row[recipientIdx] || 'N/A') : 'N/A'
+                    productName: productIdx !== -1 ? String(row[productIdx] || '').trim() : 'N/A',
+                    variation: variationIdx !== -1 ? String(row[variationIdx] || '').trim() : 'N/A',
+                    deliveryOption: deliveryOptionIdx !== -1 ? String(row[deliveryOptionIdx] || '').trim() : 'N/A',
+                    shippingProvider: shippingProviderIdx !== -1 ? String(row[shippingProviderIdx] || '').trim() : 'N/A',
                 });
             }
         }
@@ -67,6 +106,12 @@ export class SessionService {
         const items = Array.from(itemMap.values());
 
         if (items.length === 0) {
+            if (substatusIdx !== -1 && skippedCount > 0) {
+                throw new Error(
+                    `Tidak ada data dengan status "Menunggu pengambilan" dalam file Excel. ` +
+                    `(${skippedCount} baris dilewati karena substatus berbeda)`
+                );
+            }
             throw new Error('Tidak ada Tracking ID yang valid dalam file Excel.');
         }
 
@@ -265,12 +310,14 @@ export class SessionService {
     }
 
     /**
-     * Update a session item (trackingId, recipient, productName, status)
+     * Update a session item (trackingId, productName, variation, deliveryOption, shippingProvider, status)
      */
     static async updateSessionItem(itemId: string, data: {
         trackingId?: string;
-        recipient?: string;
         productName?: string;
+        variation?: string;
+        deliveryOption?: string;
+        shippingProvider?: string;
         status?: string;
         scannedAt?: Date | null;
         scannedById?: string | null;

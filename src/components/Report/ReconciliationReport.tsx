@@ -25,9 +25,11 @@ export default function ReconciliationReport({ session }: ReconciliationReportPr
 
     const exportToExcel = () => {
         const data = items.map((item: SessionItem) => ({
-            'Tracking ID': item.trackingId,
-            'Recipient': item.recipient || 'N/A',
+            'No Resi': item.trackingId,
             'Product Name': item.productName || 'N/A',
+            'Variation': item.variation || 'N/A',
+            'Delivery Option': item.deliveryOption || 'N/A',
+            'Shipping Provider': item.shippingProvider || 'N/A',
             'Status': item.status === 'SCANNED' ? 'SUDAH DISCAN' : 'BELUM DISCAN',
             'Waktu Scan': item.scannedAt ? new Date(item.scannedAt).toLocaleString('id-ID') : '-',
         }));
@@ -37,8 +39,8 @@ export default function ReconciliationReport({ session }: ReconciliationReportPr
         XLSX.utils.book_append_sheet(workbook, worksheet, 'Laporan Sesi');
 
         // Auto-size columns
-        const max_width = data.reduce((w: number, r: any) => Math.max(w, r['Tracking ID'].length), 10);
-        worksheet['!cols'] = [{ wch: max_width + 5 }, { wch: 25 }, { wch: 35 }, { wch: 15 }, { wch: 20 }];
+        const max_width = data.reduce((w: number, r: any) => Math.max(w, r['No Resi'].length), 10);
+        worksheet['!cols'] = [{ wch: max_width + 5 }, { wch: 40 }, { wch: 25 }, { wch: 20 }, { wch: 20 }, { wch: 15 }, { wch: 20 }];
 
         XLSX.writeFile(workbook, `Laporan_Sesi_${sessionName.replace(/\s+/g, '_')}_${new Date().getTime()}.xlsx`);
     };
@@ -72,33 +74,35 @@ export default function ReconciliationReport({ session }: ReconciliationReportPr
         // Table
         const tableData = items.map((item: SessionItem) => [
             item.trackingId,
-            item.recipient || 'N/A',
             item.productName || 'N/A',
+            item.variation || 'N/A',
+            item.shippingProvider || 'N/A',
             item.status === 'SCANNED' ? 'OK' : 'MISSING',
             item.scannedAt ? new Date(item.scannedAt).toLocaleString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '-'
         ]);
 
         autoTable(doc, {
             startY: 60,
-            head: [['Tracking ID', 'Recipient', 'Product Name', 'Status', 'Time']],
+            head: [['No Resi', 'Product Name', 'Variation', 'Kurir', 'Status', 'Time']],
             body: tableData,
             theme: 'grid',
             headStyles: { fillColor: [128, 0, 0], textColor: 255, fontStyle: 'bold' },
-            styles: { fontSize: 8, cellPadding: 3 },
+            styles: { fontSize: 7, cellPadding: 3 },
             columnStyles: {
-                0: { cellWidth: 40 },
-                1: { cellWidth: 35 },
-                2: { cellWidth: 60 },
-                3: { cellWidth: 15, halign: 'center' },
-                4: { cellWidth: 25, halign: 'center' }
+                0: { cellWidth: 35 },
+                1: { cellWidth: 50 },
+                2: { cellWidth: 30 },
+                3: { cellWidth: 25 },
+                4: { cellWidth: 15, halign: 'center' },
+                5: { cellWidth: 20, halign: 'center' }
             },
             didParseCell: function (data: { section: string; column: { index: number }; cell: { raw: any; styles: any } }) {
-                if (data.section === 'body' && data.column.index === 3) {
+                if (data.section === 'body' && data.column.index === 4) {
                     if (data.cell.raw === 'MISSING') {
-                        data.cell.styles.textColor = [220, 53, 69]; // Error Red
+                        data.cell.styles.textColor = [220, 53, 69];
                         data.cell.styles.fontStyle = 'bold';
                     } else {
-                        data.cell.styles.textColor = [40, 167, 69]; // Success Green
+                        data.cell.styles.textColor = [40, 167, 69];
                     }
                 }
             }
@@ -170,7 +174,15 @@ export default function ReconciliationReport({ session }: ReconciliationReportPr
                             <div key={item.id} className={styles.itemCard}>
                                 <div className={styles.itemInfo}>
                                     <h4>{item.trackingId}</h4>
-                                    <p className={styles.itemSubtitle}>{item.recipient || 'No Name'} • {item.productName || 'No Product'}</p>
+                                    <p className={styles.itemSubtitle}>{item.productName || 'No Product'}</p>
+                                    {item.variation && (
+                                        <p className={styles.itemSubtitle} style={{ fontSize: '0.75rem' }}>{item.variation}</p>
+                                    )}
+                                    {item.shippingProvider && (
+                                        <p className={styles.itemSubtitle} style={{ fontSize: '0.75rem' }}>
+                                            🚚 {item.shippingProvider}{item.deliveryOption ? ` · ${item.deliveryOption}` : ''}
+                                        </p>
+                                    )}
                                 </div>
                                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
                                     <span className={clsx(
