@@ -1,59 +1,41 @@
-// prisma/schema.prisma
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "mysql"
-  url      = env("DATABASE_URL")
+  provider  = "mysql"
+  url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
-// ============================================
-// RBAC - User Management
-// ============================================
-
-enum Role {
-  ADMIN       // Marketplace Admin - Back Office
-  WAREHOUSE   // Warehouse Staff - Field Operator
-  SUPER_ADMIN // IT / Super Admin - Full Access
-}
-
 model User {
-  id           String            @id @default(cuid())
-  username     String            @unique
-  password     String            // bcrypt hashed
-  name         String
-  role         Role
-  isActive     Boolean           @default(true)
-  createdAt    DateTime          @default(now())
-  updatedAt    DateTime          @updatedAt
-  
-  // Relations
+  id              String            @id @default(cuid())
+  username        String            @unique
+  password        String
+  name            String
+  role            Role
+  isActive        Boolean           @default(true)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  logs            ActivityLog[]
   createdSessions ScanningSession[] @relation("SessionCreator")
   scannedItems    SessionItem[]     @relation("ItemScanner")
-  logs            ActivityLog[]
 }
 
 model ActivityLog {
-  id          String   @id @default(cuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id])
-  action      String   // CREATE_SESSION, UPLOAD_EXCEL, SCAN_ITEM, LOGIN, LOGOUT, etc.
-  details     String?  @db.Text // JSON string with additional context
-  ipAddress   String?
-  userAgent   String?  @db.Text
-  createdAt   DateTime @default(now())
+  id        String   @id @default(cuid())
+  userId    String
+  action    String
+  details   String?  @db.Text
+  ipAddress String?
+  userAgent String?  @db.Text
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
 
   @@index([userId])
   @@index([action])
   @@index([createdAt])
 }
-
-// ============================================
-// Session & Scanning
-// ============================================
 
 model ScanningSession {
   id          String        @id @default(cuid())
@@ -61,33 +43,39 @@ model ScanningSession {
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
   isActive    Boolean       @default(true)
-  
-  // Creator relation
   createdById String?
   createdBy   User?         @relation("SessionCreator", fields: [createdById], references: [id])
-  
   items       SessionItem[]
+
+  @@index([createdById], map: "ScanningSession_createdById_fkey")
 }
 
 model SessionItem {
-  id                   String          @id @default(cuid())
-  sessionId            String
-  session              ScanningSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  trackingId           String          @db.VarChar(500)
-  productName          String?         @db.Text
-  variation            String?         @db.VarChar(500)
-  deliveryOption       String?         @db.VarChar(255)
-  shippingProvider     String?         @db.VarChar(255)
-  status               String          @default("UNSCANNED") // "UNSCANNED" or "SCANNED"
-  scannedAt            DateTime?
+  id               String          @id @default(cuid())
+  sessionId        String
+  session          ScanningSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  trackingId       String          @db.VarChar(500)
+  productName      String?         @db.Text
+  variation        String?         @db.VarChar(500)
+  deliveryOption   String?         @db.VarChar(255)
+  shippingProvider String?         @db.VarChar(255)
+  status           String          @default("UNSCANNED") // "UNSCANNED" or "SCANNED"
+  scannedAt        DateTime?
   
   // Scanner relation
-  scannedById          String?
-  scannedBy            User?           @relation("ItemScanner", fields: [scannedById], references: [id])
+  scannedById      String?
+  scannedBy        User?           @relation("ItemScanner", fields: [scannedById], references: [id])
   
-  createdAt            DateTime        @default(now())
+  createdAt        DateTime        @default(now())
 
   @@unique([sessionId, trackingId])
   @@index([sessionId])
   @@index([status])
+  @@index([scannedById], map: "SessionItem_scannedById_fkey")
+}
+
+enum Role {
+  ADMIN
+  WAREHOUSE
+  SUPER_ADMIN
 }
