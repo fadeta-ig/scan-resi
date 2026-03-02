@@ -92,6 +92,7 @@ export default function WarehouseScanPage({ params }: { params: Promise<{ id: st
     const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
     const isProcessingRef = useRef<boolean>(false);
     const isMountedRef = useRef(true);
+    const activeCameraIndexRef = useRef(0);
 
     const [session, setSession] = useState<SessionDetail | null>(null);
     const [loading, setLoading] = useState(true);
@@ -111,6 +112,7 @@ export default function WarehouseScanPage({ params }: { params: Promise<{ id: st
     const [pendingItem, setPendingItem] = useState<ScanResult | null>(null);
     const [availableCameras, setAvailableCameras] = useState<{ id: string; label: string }[]>([]);
     const [activeCameraIndex, setActiveCameraIndex] = useState(0);
+    const [activeCameraLabel, setActiveCameraLabel] = useState('');
 
     // Audio
     const playSound = useCallback((type: 'SUCCESS' | 'DUPLICATE' | 'INVALID') => {
@@ -204,7 +206,22 @@ export default function WarehouseScanPage({ params }: { params: Promise<{ id: st
         }
     };
 
-    const startCamera = async (overrideDeviceId?: string) => {
+    /**
+     * Safely stop and destroy the html5-qrcode instance + clear DOM.
+     * This is critical: html5-qrcode injects <video> elements that become
+     * stale if not cleaned up, causing subsequent start() calls to fail.
+     */
+    const cleanupCamera = async () => {
+        if (html5QrCodeRef.current) {
+            try { await html5QrCodeRef.current.stop(); } catch (e) { /* already stopped */ }
+            html5QrCodeRef.current = null;
+        }
+        // Critical: clear stale injected <video> and canvas elements
+        const el = document.getElementById('camera-view');
+        if (el) el.innerHTML = '';
+    };
+
+    const startCamera = async (deviceId?: string) => {
         if (!cameraRef.current) {
             setCameraError('Elemen kamera tidak ditemukan');
             return;
@@ -213,66 +230,84 @@ export default function WarehouseScanPage({ params }: { params: Promise<{ id: st
         setCameraError(null);
 
         try {
-            if (html5QrCodeRef.current) {
-                try { await html5QrCodeRef.current.stop(); } catch (e) { }
-                html5QrCodeRef.current = null;
-            }
+            // Step 1: Full cleanup of previous instance
+            await cleanupCamera();
 
+            // Step 2: Determine camera config
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            let cameraConfig: any = { facingMode: "environment" };
+            let cameraConfig: any;
+            let label = '';
 
-            // If a specific deviceId was requested (from switch camera), use it directly
-            if (overrideDeviceId) {
-                cameraConfig = overrideDeviceId;
+            if (deviceId) {
+                // Direct device ID from switchCamera — use as-is
+                cameraConfig = deviceId;
+                const cam = availableCameras.find(c => c.id === deviceId);
+                label = cam?.label || '';
             } else {
+                // First-time open: enumerate cameras and try to pick the best back camera
                 try {
                     const devices = await Html5Qrcode.getCameras();
                     if (devices && devices.length > 0) {
-                        // Store all cameras for switching
+                        // Store all cameras for the switch button
                         setAvailableCameras(devices.map(d => ({ id: d.id, label: d.label })));
 
-                        // Try to find the best back camera
-                        let selectedCamera = devices.find(device => {
-                            const label = device.label.toLowerCase();
-                            const isBack = label.includes('back') || label.includes('rear') || label.includes('environment') || label.includes('belakang');
-                            const isNotWide = !label.includes('ultra') && !label.includes('wide') && !label.includes('0.5') && !label.includes('macro');
-                            return isBack && isNotWide;
+                        // Strategy: find any camera labeled as back/rear (no aggressive filtering)
+                        const backCamera = devices.find(d => {
+                            const l = d.label.toLowerCase();
+                            return l.includes('back') || l.includes('rear') || l.includes('belakang');
                         });
 
-                        if (!selectedCamera) {
-                            selectedCamera = devices.find(device => {
-                                const label = device.label.toLowerCase();
-                                return label.includes('back') || label.includes('rear') || label.includes('environment') || label.includes('belakang');
-                            });
-                        }
-
-                        if (selectedCamera) {
-                            cameraConfig = selectedCamera.id;
-                            const idx = devices.findIndex(d => d.id === selectedCamera!.id);
-                            setActiveCameraIndex(idx >= 0 ? idx : 0);
+                        if (backCamera) {
+                            cameraConfig = backCamera.id;
+                            label = backCamera.label;
+                            const idx = devices.findIndex(d => d.id === backCamera.id);
+                            activeCameraIndexRef.current = idx >= 0 ? idx : 0;
+                            setActiveCameraIndex(activeCameraIndexRef.current);
+                        } else {
+                            // No label match — try last device (often the back camera on phones)
+                            const lastDevice = devices[devices.length - 1];
+                            cameraConfig = lastDevice.id;
+                            label = lastDevice.label;
+                            activeCameraIndexRef.current = devices.length - 1;
+                            setActiveCameraIndex(activeCameraIndexRef.current);
                         }
                     }
                 } catch (e) {
-                    console.warn("Gagal mengambil spesifik device ID, menggunakan fallback environment", e);
+                    console.warn('Cannot enumerate cameras, using facingMode fallback', e);
+                }
+
+                // Ultimate fallback if enumeration failed
+                if (!cameraConfig) {
+                    cameraConfig = { facingMode: { exact: 'environment' } };
+                    label = 'Kamera Belakang (auto)';
                 }
             }
 
-            html5QrCodeRef.current = new Html5Qrcode("camera-view", {
+            if (isMountedRef.current) setActiveCameraLabel(label);
+
+            // Step 3: Create fresh instance
+            html5QrCodeRef.current = new Html5Qrcode('camera-view', {
                 formatsToSupport: BARCODE_FORMATS,
                 verbose: false
             });
 
+            // Step 4: Build scan config — omit videoConstraints when using deviceId
+            // to avoid constraint conflicts on mobile browsers
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const scanConfig: any = {
+                fps: 15,
+                qrbox: { width: 260, height: 260 },
+                aspectRatio: 1.0,
+            };
+
+            // Only add videoConstraints for facingMode (object) configs, not deviceId (string)
+            if (typeof cameraConfig !== 'string') {
+                scanConfig.aspectRatio = 1.0;
+            }
+
             await html5QrCodeRef.current.start(
                 cameraConfig,
-                {
-                    fps: 20,
-                    qrbox: { width: 260, height: 260 },
-                    aspectRatio: 1.0,
-                    videoConstraints: {
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        ...({ zoom: { ideal: 1 } } as any)
-                    } as MediaTrackConstraints
-                },
+                scanConfig,
                 async (decodedText) => {
                     if (isProcessingRef.current) return;
                     isProcessingRef.current = true;
@@ -289,6 +324,43 @@ export default function WarehouseScanPage({ params }: { params: Promise<{ id: st
             if (isMountedRef.current) setCameraActive(true);
         } catch (err: unknown) {
             console.error('Camera error:', err);
+
+            // If exact:environment failed, retry with facingMode:user as last resort
+            // This means the device might not support the exact constraint
+            if (!deviceId && typeof err === 'object' && err !== null) {
+                const errObj = err as Error & { name?: string };
+                if (errObj.name === 'OverconstrainedError' || errObj.message?.includes('Overconstrained')) {
+                    console.warn('exact:environment failed, retrying with ideal:environment');
+                    try {
+                        await cleanupCamera();
+                        html5QrCodeRef.current = new Html5Qrcode('camera-view', {
+                            formatsToSupport: BARCODE_FORMATS,
+                            verbose: false
+                        });
+                        await html5QrCodeRef.current.start(
+                            { facingMode: 'environment' },
+                            { fps: 15, qrbox: { width: 260, height: 260 }, aspectRatio: 1.0 },
+                            async (decodedText) => {
+                                if (isProcessingRef.current) return;
+                                isProcessingRef.current = true;
+                                if (html5QrCodeRef.current) {
+                                    try { await html5QrCodeRef.current.pause(); } catch (e) { }
+                                }
+                                handleScan(decodedText);
+                            },
+                            () => { }
+                        );
+                        if (isMountedRef.current) {
+                            setCameraActive(true);
+                            setActiveCameraLabel('Kamera Belakang (fallback)');
+                        }
+                        return; // Success on retry
+                    } catch (retryErr) {
+                        console.error('Fallback camera also failed:', retryErr);
+                    }
+                }
+            }
+
             if (isMountedRef.current) {
                 const error = err as Error & { name?: string };
                 const msg = error.name === 'NotAllowedError'
@@ -307,23 +379,24 @@ export default function WarehouseScanPage({ params }: { params: Promise<{ id: st
             return;
         }
 
-        const nextIndex = (activeCameraIndex + 1) % availableCameras.length;
+        // Use ref for immediate access (React state is async)
+        const nextIndex = (activeCameraIndexRef.current + 1) % availableCameras.length;
+        activeCameraIndexRef.current = nextIndex;
         setActiveCameraIndex(nextIndex);
         setCameraActive(false);
 
         const nextCam = availableCameras[nextIndex];
         toast.info(`Beralih ke: ${nextCam.label || `Kamera ${nextIndex + 1}`}`);
+
+        // Full stop + DOM cleanup before starting new camera
+        await cleanupCamera();
         await startCamera(nextCam.id);
     };
 
     const stopCamera = async () => {
-        if (html5QrCodeRef.current) {
-            try {
-                await html5QrCodeRef.current.stop();
-            } catch (e) { }
-            html5QrCodeRef.current = null;
-        }
+        await cleanupCamera();
         setCameraActive(false);
+        setActiveCameraLabel('');
     };
 
     const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -684,23 +757,30 @@ export default function WarehouseScanPage({ params }: { params: Promise<{ id: st
                                     </div>
                                 </div>
 
-                                <div className="flex items-center justify-center gap-3 mt-4">
-                                    <div className="flex items-center gap-2">
-                                        <div className={cn(styles.statusDot, cameraActive && styles.statusDotActive)}></div>
-                                        <p className="text-sm text-muted-foreground">
-                                            {cameraActive ? 'Kamera aktif - Siap memindai' : 'Sedang memuat kamera...'}
-                                        </p>
+                                <div className="flex flex-col items-center gap-2 mt-4">
+                                    <div className="flex items-center justify-center gap-3">
+                                        <div className="flex items-center gap-2">
+                                            <div className={cn(styles.statusDot, cameraActive && styles.statusDotActive)}></div>
+                                            <p className="text-sm text-muted-foreground">
+                                                {cameraActive ? 'Kamera aktif - Siap memindai' : 'Sedang memuat kamera...'}
+                                            </p>
+                                        </div>
+                                        {cameraActive && availableCameras.length > 1 && (
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={switchCamera}
+                                                className="gap-1.5 text-xs h-8 px-3 rounded-full border-primary/20 text-primary hover:bg-primary/5"
+                                            >
+                                                <CameraRotated01Icon size={16} />
+                                                Ganti Kamera
+                                            </Button>
+                                        )}
                                     </div>
-                                    {cameraActive && availableCameras.length > 1 && (
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={switchCamera}
-                                            className="gap-1.5 text-xs h-8 px-3 rounded-full border-primary/20 text-primary hover:bg-primary/5"
-                                        >
-                                            <CameraRotated01Icon size={16} />
-                                            Ganti Kamera
-                                        </Button>
+                                    {activeCameraLabel && (
+                                        <p className="text-[11px] text-muted-foreground/60 truncate max-w-[280px]">
+                                            📷 {activeCameraLabel}
+                                        </p>
                                     )}
                                 </div>
                             </div>
