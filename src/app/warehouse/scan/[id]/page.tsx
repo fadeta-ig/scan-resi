@@ -24,7 +24,8 @@ import {
     PackageIcon,
     ScanIcon,
     InformationCircleIcon,
-    Time01Icon
+    Time01Icon,
+    CameraRotated01Icon
 } from 'hugeicons-react';
 
 interface SessionDetail {
@@ -85,6 +86,8 @@ export default function WarehouseScanPage({ params }: { params: Promise<{ id: st
     const [cameraActive, setCameraActive] = useState(false);
     const [cameraError, setCameraError] = useState<string | null>(null);
     const [cameraReady, setCameraReady] = useState(false);
+    const [availableCameras, setAvailableCameras] = useState<{ id: string; label: string }[]>([]);
+    const [activeCameraIndex, setActiveCameraIndex] = useState(0);
 
     // Audio
     const playSound = useCallback((type: 'SUCCESS' | 'DUPLICATE' | 'INVALID') => {
@@ -119,6 +122,7 @@ export default function WarehouseScanPage({ params }: { params: Promise<{ id: st
                 setTimeout(() => inputRef.current?.focus(), 100);
             }
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [scanMode, cameraReady]);
 
     useEffect(() => {
@@ -150,7 +154,7 @@ export default function WarehouseScanPage({ params }: { params: Promise<{ id: st
         }
     };
 
-    const startCamera = async () => {
+    const startCamera = async (overrideDeviceId?: string) => {
         if (!cameraRef.current) {
             setCameraError('Elemen kamera tidak ditemukan');
             return;
@@ -161,35 +165,46 @@ export default function WarehouseScanPage({ params }: { params: Promise<{ id: st
         try {
             if (html5QrCodeRef.current) {
                 try { await html5QrCodeRef.current.stop(); } catch (e) { }
+                html5QrCodeRef.current = null;
             }
 
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             let cameraConfig: any = { facingMode: "environment" };
 
-            try {
-                const devices = await Html5Qrcode.getCameras();
-                if (devices && devices.length > 0) {
-                    // Filter out ultra-wide lenses, prioritize normal back camera
-                    let selectedCamera = devices.find(device => {
-                        const label = device.label.toLowerCase();
-                        const isBack = label.includes('back') || label.includes('rear') || label.includes('environment') || label.includes('belakang');
-                        const isNotWide = !label.includes('ultra') && !label.includes('wide') && !label.includes('0.5') && !label.includes('macro');
-                        return isBack && isNotWide;
-                    });
+            // If a specific deviceId was requested (from switch camera), use it directly
+            if (overrideDeviceId) {
+                cameraConfig = overrideDeviceId;
+            } else {
+                try {
+                    const devices = await Html5Qrcode.getCameras();
+                    if (devices && devices.length > 0) {
+                        // Store all cameras for switching
+                        setAvailableCameras(devices.map(d => ({ id: d.id, label: d.label })));
 
-                    if (!selectedCamera) {
-                        selectedCamera = devices.find(device => {
+                        // Try to find the best back camera
+                        let selectedCamera = devices.find(device => {
                             const label = device.label.toLowerCase();
-                            return label.includes('back') || label.includes('rear') || label.includes('environment') || label.includes('belakang');
+                            const isBack = label.includes('back') || label.includes('rear') || label.includes('environment') || label.includes('belakang');
+                            const isNotWide = !label.includes('ultra') && !label.includes('wide') && !label.includes('0.5') && !label.includes('macro');
+                            return isBack && isNotWide;
                         });
-                    }
 
-                    if (selectedCamera) {
-                        cameraConfig = selectedCamera.id;
+                        if (!selectedCamera) {
+                            selectedCamera = devices.find(device => {
+                                const label = device.label.toLowerCase();
+                                return label.includes('back') || label.includes('rear') || label.includes('environment') || label.includes('belakang');
+                            });
+                        }
+
+                        if (selectedCamera) {
+                            cameraConfig = selectedCamera.id;
+                            const idx = devices.findIndex(d => d.id === selectedCamera!.id);
+                            setActiveCameraIndex(idx >= 0 ? idx : 0);
+                        }
                     }
+                } catch (e) {
+                    console.warn("Gagal mengambil spesifik device ID, menggunakan fallback environment", e);
                 }
-            } catch (e) {
-                console.warn("Gagal mengambil spesifik device ID, menggunakan fallback environment", e);
             }
 
             html5QrCodeRef.current = new Html5Qrcode("camera-view", {
@@ -234,6 +249,21 @@ export default function WarehouseScanPage({ params }: { params: Promise<{ id: st
                 toast.error(msg);
             }
         }
+    };
+
+    const switchCamera = async () => {
+        if (availableCameras.length < 2) {
+            toast.info('Hanya 1 kamera tersedia di perangkat ini');
+            return;
+        }
+
+        const nextIndex = (activeCameraIndex + 1) % availableCameras.length;
+        setActiveCameraIndex(nextIndex);
+        setCameraActive(false);
+
+        const nextCam = availableCameras[nextIndex];
+        toast.info(`Beralih ke: ${nextCam.label || `Kamera ${nextIndex + 1}`}`);
+        await startCamera(nextCam.id);
     };
 
     const stopCamera = async () => {
@@ -526,11 +556,24 @@ export default function WarehouseScanPage({ params }: { params: Promise<{ id: st
                                     </div>
                                 </div>
 
-                                <div className="flex items-center justify-center gap-2 mt-4">
-                                    <div className={cn(styles.statusDot, cameraActive && styles.statusDotActive)}></div>
-                                    <p className="text-sm text-muted-foreground">
-                                        {cameraActive ? 'Kamera aktif - Siap memindai' : 'Sedang memuat kamera...'}
-                                    </p>
+                                <div className="flex items-center justify-center gap-3 mt-4">
+                                    <div className="flex items-center gap-2">
+                                        <div className={cn(styles.statusDot, cameraActive && styles.statusDotActive)}></div>
+                                        <p className="text-sm text-muted-foreground">
+                                            {cameraActive ? 'Kamera aktif - Siap memindai' : 'Sedang memuat kamera...'}
+                                        </p>
+                                    </div>
+                                    {cameraActive && availableCameras.length > 1 && (
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={switchCamera}
+                                            className="gap-1.5 text-xs h-8 px-3 rounded-full border-primary/20 text-primary hover:bg-primary/5"
+                                        >
+                                            <CameraRotated01Icon size={16} />
+                                            Ganti Kamera
+                                        </Button>
+                                    )}
                                 </div>
                             </div>
                         )}
