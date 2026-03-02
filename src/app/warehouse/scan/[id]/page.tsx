@@ -13,7 +13,6 @@ import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import {
     ArrowLeft01Icon,
-    CheckmarkCircle02Icon,
     Alert02Icon,
     Loading03Icon,
     KeyboardIcon,
@@ -24,13 +23,28 @@ import {
     PackageIcon,
     ScanIcon,
     InformationCircleIcon,
+    ViewIcon,
+    CheckmarkCircle02Icon as CheckedIcon,
+    Tick02Icon,
     Time01Icon,
     CameraRotated01Icon
 } from 'hugeicons-react';
 
+interface SessionItem {
+    id: string;
+    trackingId: string;
+    productName: string | null;
+    variation: string | null;
+    shippingProvider: string | null;
+    deliveryOption: string | null;
+    status: string;
+    scannedAt: string | null;
+}
+
 interface SessionDetail {
     id: string;
     name: string;
+    items?: SessionItem[];
     stats: {
         total: number;
         scannedCount: number;
@@ -43,6 +57,11 @@ interface ScanResult {
     id: string;
     trackingId: string;
     time: string;
+    productName?: string | null;
+    variation?: string | null;
+    shippingProvider?: string | null;
+    deliveryOption?: string | null;
+    status?: string;
 }
 
 type FeedbackType = 'SUCCESS' | 'DUPLICATE' | 'INVALID' | null;
@@ -86,6 +105,10 @@ export default function WarehouseScanPage({ params }: { params: Promise<{ id: st
     const [cameraActive, setCameraActive] = useState(false);
     const [cameraError, setCameraError] = useState<string | null>(null);
     const [cameraReady, setCameraReady] = useState(false);
+    const [selectedItem, setSelectedItem] = useState<ScanResult | null>(null);
+    const [showDetailModal, setShowDetailModal] = useState(false);
+    const [showConfirmModal, setShowConfirmModal] = useState(false);
+    const [pendingItem, setPendingItem] = useState<ScanResult | null>(null);
     const [availableCameras, setAvailableCameras] = useState<{ id: string; label: string }[]>([]);
     const [activeCameraIndex, setActiveCameraIndex] = useState(0);
 
@@ -144,7 +167,34 @@ export default function WarehouseScanPage({ params }: { params: Promise<{ id: st
         try {
             const res = await fetch(`/api/sessions/${resolvedParams.id}/scan`);
             if (res.ok && isMountedRef.current) {
-                setSession(await res.json());
+                const data = await res.json();
+                setSession(data);
+
+                // Populate recent scans from already scanned items in the database
+                if (data.items && Array.isArray(data.items)) {
+                    const initialRecent = data.items
+                        .filter((item: SessionItem) => item.status === 'SCANNED')
+                        .sort((a: SessionItem, b: SessionItem) => {
+                            const dateA = a.scannedAt ? new Date(a.scannedAt).getTime() : 0;
+                            const dateB = b.scannedAt ? new Date(b.scannedAt).getTime() : 0;
+                            return dateB - dateA;
+                        })
+                        .slice(0, 10)
+                        .map((item: SessionItem) => ({
+                            id: item.id,
+                            trackingId: item.trackingId,
+                            time: item.scannedAt ? new Date(item.scannedAt).toLocaleTimeString('id-ID', { hour12: false, hour: '2-digit', minute: '2-digit' }) : '-',
+                            productName: item.productName,
+                            variation: item.variation,
+                            shippingProvider: item.shippingProvider,
+                            deliveryOption: item.deliveryOption,
+                            status: item.status
+                        }));
+
+                    if (initialRecent.length > 0) {
+                        setRecentScans(initialRecent);
+                    }
+                }
             }
         } catch (error) {
             console.error('Failed to fetch session:', error);
@@ -307,13 +357,16 @@ export default function WarehouseScanPage({ params }: { params: Promise<{ id: st
             if (isMountedRef.current) {
                 setFeedback(null);
 
-                // Resume scanning and release lock
-                if (html5QrCodeRef.current && scanMode === 'camera') {
+                // Resume scanning and release lock ONLY if not showing confirm modal
+                if (!showConfirmModal && html5QrCodeRef.current && scanMode === 'camera') {
                     try { await html5QrCodeRef.current.resume(); } catch (e) { }
                 }
-                isProcessingRef.current = false;
 
-                if (scanMode === 'manual') inputRef.current?.focus();
+                if (!showConfirmModal) {
+                    isProcessingRef.current = false;
+                }
+
+                if (!showConfirmModal && scanMode === 'manual') inputRef.current?.focus();
             }
         }, type === 'SUCCESS' ? 1200 : 2000);
     };
@@ -323,6 +376,48 @@ export default function WarehouseScanPage({ params }: { params: Promise<{ id: st
 
         setScanning(true);
         const cleanId = trackingId.trim();
+
+        try {
+            // New Workflow: First fetch details (Lookup)
+            const res = await fetch(`/api/sessions/${resolvedParams.id}/scan?q=${cleanId}`);
+
+            if (res.ok) {
+                const itemData = await res.json();
+
+                // If item found, show confirmation modal
+                setPendingItem({
+                    id: itemData.id,
+                    trackingId: itemData.trackingId,
+                    time: new Date().toLocaleTimeString('id-ID', { hour12: false, hour: '2-digit', minute: '2-digit' }),
+                    productName: itemData.productName,
+                    variation: itemData.variation,
+                    shippingProvider: itemData.shippingProvider,
+                    deliveryOption: itemData.deliveryOption,
+                    status: itemData.status
+                });
+                setShowConfirmModal(true);
+
+                // Pause camera while showing modal
+                if (html5QrCodeRef.current && scanMode === 'camera') {
+                    try { await html5QrCodeRef.current.pause(); } catch (e) { }
+                }
+            } else {
+                // Not found in session
+                showFeedback('INVALID', 'Nomor Resi Tidak Terdaftar', cleanId);
+            }
+        } catch (error) {
+            showFeedback('INVALID', 'Koneksi gagal', cleanId);
+        } finally {
+            setScanning(false);
+            setInputValue('');
+        }
+    };
+
+    const confirmScan = async () => {
+        if (!pendingItem) return;
+
+        setScanning(true);
+        const cleanId = pendingItem.trackingId;
 
         try {
             const res = await fetch(`/api/sessions/${resolvedParams.id}/scan`, {
@@ -335,6 +430,10 @@ export default function WarehouseScanPage({ params }: { params: Promise<{ id: st
 
             if (res.ok) {
                 const status = data.status as 'SUCCESS' | 'DUPLICATE' | 'INVALID';
+
+                // Close modal and show success feedback
+                setShowConfirmModal(false);
+                setPendingItem(null);
                 showFeedback(status, data.message || '', cleanId);
 
                 if (status === 'SUCCESS') {
@@ -347,23 +446,51 @@ export default function WarehouseScanPage({ params }: { params: Promise<{ id: st
                             progress: ((prev.stats.scannedCount + 1) / prev.stats.total) * 100
                         }
                     } : null);
+                }
 
-                    setRecentScans(prev => [{
-                        id: Date.now().toString(),
-                        trackingId: cleanId,
-                        time: new Date().toLocaleTimeString('id-ID', { hour12: false, hour: '2-digit', minute: '2-digit' })
-                    }, ...prev].slice(0, 5));
+                if (status === 'SUCCESS' || status === 'DUPLICATE') {
+                    setRecentScans(prev => {
+                        const exists = prev.find(s => s.trackingId === cleanId);
+                        if (exists) return prev;
+
+                        return [{
+                            id: Date.now().toString(),
+                            trackingId: cleanId,
+                            time: new Date().toLocaleTimeString('id-ID', { hour12: false, hour: '2-digit', minute: '2-digit' }),
+                            productName: data.item?.productName,
+                            variation: data.item?.variation,
+                            shippingProvider: data.item?.shippingProvider,
+                            deliveryOption: data.item?.deliveryOption,
+                            status: data.item?.status
+                        }, ...prev].slice(0, 10);
+                    });
                 }
             } else {
+                setShowConfirmModal(false);
+                setPendingItem(null);
                 showFeedback('INVALID', data.error || 'TIDAK TERDAFTAR', cleanId);
             }
         } catch (error) {
+            setShowConfirmModal(false);
+            setPendingItem(null);
             showFeedback('INVALID', 'Koneksi gagal', cleanId);
-            toast.error("Koneksi gagal");
         } finally {
             setScanning(false);
-            setInputValue('');
+            isProcessingRef.current = false; // Release lock after modal closed & feedback done
         }
+    };
+
+    const cancelScan = () => {
+        setShowConfirmModal(false);
+        setPendingItem(null);
+        isProcessingRef.current = false;
+
+        // Resume camera if was in camera mode
+        if (html5QrCodeRef.current && scanMode === 'camera') {
+            try { html5QrCodeRef.current.resume(); } catch (e) { }
+        }
+
+        if (scanMode === 'manual') inputRef.current?.focus();
     };
 
     if (loading) {
@@ -403,7 +530,7 @@ export default function WarehouseScanPage({ params }: { params: Promise<{ id: st
                     <div className={styles.overlayIcon}>
                         {feedback === 'SUCCESS' ? (
                             <div className="bg-white/20 p-8 rounded-full">
-                                <CheckmarkCircle02Icon size={100} strokeWidth={2.5} />
+                                <CheckedIcon size={100} strokeWidth={2.5} />
                             </div>
                         ) : feedback === 'DUPLICATE' ? (
                             <div className="bg-white/20 p-8 rounded-full">
@@ -421,7 +548,8 @@ export default function WarehouseScanPage({ params }: { params: Promise<{ id: st
                     <div className={styles.overlayId}>{feedbackTrackingId || '---'}</div>
                     <p className="mt-6 text-xl font-semibold opacity-90">{feedbackMessage}</p>
                 </div>
-            )}
+            )
+            }
 
             {/* Header */}
             <header className={styles.scanHeader}>
@@ -616,25 +744,183 @@ export default function WarehouseScanPage({ params }: { params: Promise<{ id: st
             </div>
 
             {/* History Section */}
-            {recentScans.length > 0 && (
-                <div className={styles.recentSection}>
-                    <div className="flex items-center gap-2 mb-4 text-muted-foreground">
-                        <Time01Icon size={16} />
-                        <h3 className="text-sm font-semibold uppercase tracking-wider">Riwayat Scan Terbaru</h3>
-                    </div>
-                    <div className={styles.recentList}>
-                        {recentScans.map(scan => (
-                            <div key={scan.id} className={styles.recentItem}>
-                                <div className="bg-success/10 p-2 rounded-lg">
-                                    <CheckmarkCircle02Icon size={18} className="text-success" />
+            {
+                recentScans.length > 0 && (
+                    <div className={styles.recentSection}>
+                        <div className="flex items-center gap-2 mb-4 text-muted-foreground">
+                            <Time01Icon size={16} />
+                            <h3 className="text-sm font-semibold uppercase tracking-wider">Riwayat Scan Terbaru</h3>
+                        </div>
+                        <div className={styles.recentList}>
+                            {recentScans.map(scan => (
+                                <div
+                                    key={scan.id}
+                                    className={cn(styles.recentItem, "cursor-pointer hover:bg-black/5 transition-colors active:scale-95")}
+                                    onClick={() => {
+                                        setSelectedItem(scan);
+                                        setShowDetailModal(true);
+                                    }}
+                                >
+                                    <div className="bg-success/10 p-2 rounded-lg">
+                                        <CheckedIcon size={18} className="text-success" />
+                                    </div>
+                                    <div className="flex-1 overflow-hidden">
+                                        <div className={styles.recentId}>{scan.trackingId}</div>
+                                        <div className="text-[10px] text-muted-foreground truncate">{scan.productName || 'Tanpa Nama Produk'}</div>
+                                    </div>
+                                    <div className="flex flex-col items-end gap-1">
+                                        <span className={styles.recentTime}>{scan.time}</span>
+                                        <ViewIcon size={14} className="text-primary/40" />
+                                    </div>
                                 </div>
-                                <span className={styles.recentId}>{scan.trackingId}</span>
-                                <span className={styles.recentTime}>{scan.time}</span>
-                            </div>
-                        ))}
+                            ))}
+                        </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+
+            {/* Product Detail Modal */}
+            {
+                showDetailModal && selectedItem && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+                        <div className="bg-white w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
+                            <div className="bg-primary p-6 text-white relative">
+                                <button
+                                    onClick={() => setShowDetailModal(false)}
+                                    className="absolute right-4 top-4 p-2 bg-white/10 hover:bg-white/20 rounded-full transition-colors"
+                                >
+                                    <Cancel01Icon size={20} />
+                                </button>
+                                <div className="flex items-center gap-3 mb-1">
+                                    <div className="p-2 bg-white/20 rounded-xl">
+                                        <PackageIcon size={24} />
+                                    </div>
+                                    <h3 className="text-xl font-bold">Detail Paket</h3>
+                                </div>
+                                <p className="text-white/60 text-[10px] uppercase tracking-widest font-black">Informasi Produk Warehouse</p>
+                            </div>
+
+                            <div className="p-6 space-y-5">
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-wider">No Resi</label>
+                                    <div className="font-mono font-bold text-lg text-primary bg-primary/5 p-3 rounded-xl border border-primary/10 select-all">
+                                        {selectedItem.trackingId}
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-black text-muted-foreground uppercase tracking-wider">Status</label>
+                                        <div className="flex items-center gap-1.5 text-success font-bold text-sm">
+                                            <Tick02Icon size={16} /> Terscan
+                                        </div>
+                                    </div>
+                                    <div className="space-y-1 text-right">
+                                        <label className="text-[10px] font-black text-muted-foreground uppercase tracking-wider">Waktu</label>
+                                        <div className="text-sm font-bold">{selectedItem.time}</div>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-wider">Produk</label>
+                                    <div className="text-sm font-bold leading-tight bg-gray-50 p-3 rounded-xl border border-gray-100 italic">
+                                        {selectedItem.productName || 'N/A'}
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-black text-muted-foreground uppercase tracking-wider">Variasi</label>
+                                        <div className="text-sm font-bold">{selectedItem.variation || '-'}</div>
+                                    </div>
+                                    <div className="space-y-1 text-right">
+                                        <label className="text-[10px] font-black text-muted-foreground uppercase tracking-wider">Kurir</label>
+                                        <div className="text-sm font-bold text-primary">{selectedItem.shippingProvider || '-'}</div>
+                                    </div>
+                                </div>
+
+                                <Button
+                                    onClick={() => setShowDetailModal(false)}
+                                    className="w-full h-12 bg-primary hover:bg-primary/90 text-white font-bold rounded-2xl shadow-xl shadow-primary/20 transition-all active:scale-95"
+                                >
+                                    Tutup Perincian
+                                </Button>
+                            </div>
+                        </div>
+                    </div >
+                )
+            }
+
+            {/* Confirmation Modal (New Workflow) */}
+            {
+                showConfirmModal && pendingItem && (
+                    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-in fade-in duration-300">
+                        <div className="bg-white w-full max-w-sm rounded-[2.5rem] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300 border border-white/20">
+                            <div className="bg-gradient-to-br from-primary to-[#a00000] p-8 text-white relative">
+                                <div className="flex flex-col items-center text-center gap-3">
+                                    <div className="p-4 bg-white/20 rounded-2xl backdrop-blur-sm">
+                                        <InformationCircleIcon size={32} />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-2xl font-black tracking-tight">Konfirmasi Scan</h3>
+                                        <p className="text-white/70 text-xs font-bold uppercase tracking-widest mt-1">Verifikasi Data Paket</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="p-8 space-y-6">
+                                <div className="space-y-4">
+                                    <div className="p-4 bg-primary/5 rounded-2xl border border-primary/10 text-center">
+                                        <label className="text-[10px] font-black text-muted-foreground uppercase tracking-wider block mb-1">No Resi Ditemukan</label>
+                                        <div className="font-mono font-black text-xl text-primary">{pendingItem.trackingId}</div>
+                                    </div>
+
+                                    <div className="space-y-3">
+                                        <div className="flex justify-between items-center py-2 border-b border-gray-50">
+                                            <span className="text-[10px] font-black text-muted-foreground uppercase tracking-wider">Status Saat Ini</span>
+                                            <span className={cn(
+                                                "text-[10px] px-2 py-0.5 rounded-full font-bold",
+                                                pendingItem.status === 'SCANNED' ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-600"
+                                            )}>
+                                                {pendingItem.status === 'SCANNED' ? 'SUDAH TERSCAN' : 'BELUM TERSCAN'}
+                                            </span>
+                                        </div>
+                                        <div className="flex justify-between items-start py-2 border-b border-gray-50">
+                                            <span className="text-[10px] font-black text-muted-foreground uppercase tracking-wider">Produk</span>
+                                            <span className="text-xs font-bold text-right max-w-[150px] leading-tight">{pendingItem.productName || '-'}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center py-2 border-b border-gray-50">
+                                            <span className="text-[10px] font-black text-muted-foreground uppercase tracking-wider">Variasi</span>
+                                            <span className="text-xs font-bold">{pendingItem.variation || '-'}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center py-2">
+                                            <span className="text-[10px] font-black text-muted-foreground uppercase tracking-wider">Kurir</span>
+                                            <span className="text-xs font-bold text-primary">{pendingItem.shippingProvider || '-'}</span>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-3 pt-2">
+                                        <Button
+                                            variant="outline"
+                                            onClick={cancelScan}
+                                            className="h-14 rounded-2xl border-2 font-bold hover:bg-gray-50 active:scale-95 transition-all w-full"
+                                        >
+                                            Batalkan
+                                        </Button>
+                                        <Button
+                                            onClick={confirmScan}
+                                            disabled={scanning}
+                                            className="h-14 bg-primary hover:bg-primary/90 text-white font-bold rounded-2xl shadow-xl shadow-primary/20 active:scale-95 transition-all w-full"
+                                        >
+                                            {scanning ? <Loading03Icon className="animate-spin" size={20} /> : 'Lanjutkan'}
+                                        </Button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )
+            }
+        </div >
     );
 }

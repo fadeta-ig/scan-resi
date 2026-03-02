@@ -6,15 +6,19 @@ export type ItemStatus = 'UNSCANNED' | 'SCANNED';
 export interface ExcelItem {
     trackingId: string;
     productName: string;
-    recipient: string;
+    variation: string;
+    deliveryOption: string;
+    shippingProvider: string;
 }
 
 export interface SessionItem {
     id: string;
     sessionId: string;
     trackingId: string;
-    recipient: string | null;
     productName: string | null;
+    variation: string | null;
+    deliveryOption: string | null;
+    shippingProvider: string | null;
     status: ItemStatus;
     scannedAt: Date | null;
     scannedById: string | null;

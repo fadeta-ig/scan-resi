@@ -112,7 +112,7 @@ export default function Scanner({ sessionId, onScanResult }: ScannerProps) {
                 if (result.status === 'SUCCESS') {
                     setStatus('SUCCESS');
                     playSound('success');
-                    success(`Paket ${decodedText} berhasil discan`, 'Scan Berhasil');
+                    success(`No Resi ${decodedText} berhasil discan`, 'Scan Berhasil');
                     onScanResult();
                 } else if (result.status === 'DUPLICATE') {
                     setStatus('WARNING');
@@ -193,7 +193,18 @@ export default function Scanner({ sessionId, onScanResult }: ScannerProps) {
                         }}>
                             {lastScanned.trackingId}
                         </h3>
-                        <p>{lastScanned.recipient || 'Tidak ada data penerima'}</p>
+                        <p>{lastScanned.productName || 'Tidak ada data produk'}</p>
+                        {lastScanned.variation && (
+                            <p style={{ fontSize: '0.8rem', opacity: 0.75 }}>
+                                {lastScanned.variation}
+                            </p>
+                        )}
+                        {lastScanned.shippingProvider && (
+                            <p style={{ fontSize: '0.8rem', opacity: 0.75 }}>
+                                🚚 {lastScanned.shippingProvider}
+                                {lastScanned.deliveryOption ? ` · ${lastScanned.deliveryOption}` : ''}
+                            </p>
+                        )}
                     </div>
                 </div>
             )}

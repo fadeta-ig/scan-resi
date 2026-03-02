@@ -60,6 +60,17 @@ export async function GET(
 ) {
     try {
         const { id: sessionId } = await params;
+        const { searchParams } = new URL(req.url);
+        const query = searchParams.get('q');
+
+        if (query) {
+            const item = await SessionService.getItem(sessionId, query);
+            if (!item) {
+                return NextResponse.json({ error: 'Item not found' }, { status: 404 });
+            }
+            return NextResponse.json(item);
+        }
+
         const sessionData = await SessionService.getSession(sessionId);
 
         if (!sessionData) {
