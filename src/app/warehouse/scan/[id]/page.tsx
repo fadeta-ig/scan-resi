@@ -214,7 +214,7 @@ export default function WarehouseScanPage({ params }: { params: Promise<{ id: st
             }
 
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            let cameraConfig: any = { facingMode: { ideal: 'environment' } };
+            let cameraConfig: any = { facingMode: "environment" };
 
             try {
                 const devices = await Html5Qrcode.getCameras();
@@ -222,16 +222,16 @@ export default function WarehouseScanPage({ params }: { params: Promise<{ id: st
                     // Filter out ultra-wide lenses, prioritize normal back camera
                     let selectedCamera = devices.find(device => {
                         const label = device.label.toLowerCase();
-                        return label.includes('back') &&
-                            !label.includes('ultra') &&
-                            !label.includes('wide') &&
-                            !label.includes('0.5');
+                        const isBack = label.includes('back') || label.includes('rear') || label.includes('environment') || label.includes('belakang');
+                        const isNotWide = !label.includes('ultra') && !label.includes('wide') && !label.includes('0.5') && !label.includes('macro');
+                        return isBack && isNotWide;
                     });
 
                     if (!selectedCamera) {
-                        selectedCamera = devices.find(device =>
-                            device.label.toLowerCase().includes('back')
-                        );
+                        selectedCamera = devices.find(device => {
+                            const label = device.label.toLowerCase();
+                            return label.includes('back') || label.includes('rear') || label.includes('environment') || label.includes('belakang');
+                        });
                     }
 
                     if (selectedCamera) {
